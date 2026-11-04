@@ -17,7 +17,7 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await withAuth(path, options);
   if (response.status === 401 && useAuthStore.getState().refreshToken) {
-    const refreshed = await tryRefresh();
+    const refreshed = await refreshSession();
     if (refreshed) {
       const retried = await withAuth(path, options);
       return parse<T>(retried);
@@ -39,8 +39,10 @@ function withAuth(path: string, options: RequestInit): Promise<Response> {
   });
 }
 
-async function tryRefresh(): Promise<boolean> {
+export async function refreshSession(): Promise<boolean> {
   const { refreshToken, setSession } = useAuthStore.getState();
+  if (!refreshToken) return false;
+
   const response = await fetch('/api/auth/refresh', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
