@@ -58,6 +58,42 @@ export class PromisesService {
     });
   }
 
+  async findActive(): Promise<
+    Array<
+      PaymentPromise & {
+        client: { clientCode: string; user: { firstName: string; lastName: string; documentId: string } };
+        invoice: { invoiceNumber: string; dueDate: Date; status: string };
+      }
+    >
+  > {
+    const promises = await this.prisma.paymentPromise.findMany({
+      where: { fulfilled: false, promiseDate: { gte: new Date() } },
+      orderBy: { promiseDate: 'asc' },
+    });
+    return Promise.all(
+      promises.map(async (promise) => {
+        const [client, invoice] = await Promise.all([
+          this.prisma.client.findUnique({
+            where: { id: promise.clientId },
+            include: { user: { select: { firstName: true, lastName: true, documentId: true } } },
+          }),
+          this.prisma.invoice.findUnique({
+            where: { id: promise.invoiceId },
+            select: { invoiceNumber: true, dueDate: true, status: true },
+          }),
+        ]);
+        if (!client || !invoice) {
+          throw new NotFoundException('No se encontró el cliente o la factura de una promesa vigente');
+        }
+        return {
+          ...promise,
+          client: { clientCode: client.clientCode, user: client.user },
+          invoice,
+        };
+      }),
+    );
+  }
+
   /** Called by PaymentsService when a payment on the invoice is validated. */
   async markFulfilled(invoiceId: string): Promise<void> {
     await this.prisma.paymentPromise.updateMany({

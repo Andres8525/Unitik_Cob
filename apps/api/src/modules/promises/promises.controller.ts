@@ -25,6 +25,13 @@ export class PromisesController {
     return this.promisesService.create(dto.invoiceId, dto.daysExtension, user.id);
   }
 
+  @Get('active')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Listar promesas de pago vigentes para administración' })
+  findActive(): Promise<PaymentPromise[]> {
+    return this.promisesService.findActive();
+  }
+
   @Get()
   @Roles(Role.ADMIN, Role.CASHIER)
   @ApiOperation({ summary: 'Promesas de pago de un cliente (seguimiento)' })
