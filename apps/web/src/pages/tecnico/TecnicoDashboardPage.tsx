@@ -1,4 +1,5 @@
 import { ClipboardCheck, FileStack, MapPinned, Radio, Ticket } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
 
 const navItems: DashboardNavItem[] = [
@@ -28,6 +29,15 @@ export default function TecnicoDashboardPage() {
           </div>
         ))}
       </section>
+
+      <div>
+        <Link
+          className="inline-flex items-center gap-2 rounded-lg bg-unitik-600 px-4 py-2 text-sm font-semibold text-white hover:bg-unitik-700"
+          to="/clientes/nuevo"
+        >
+          Registrar cliente
+        </Link>
+      </div>
 
       <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
         <h3 className="mb-3 font-semibold text-slate-700">Agenda de trabajo</h3>

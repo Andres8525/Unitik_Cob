@@ -61,7 +61,7 @@ export default function PortalPage() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -86,6 +86,11 @@ export default function PortalPage() {
             <User className="h-4 w-4" /> Mi información
           </h2>
           {profile.isLoading && <p className="text-sm text-slate-400">Cargando…</p>}
+          {profile.isError && (
+            <p className="text-sm text-red-600" role="alert">
+              No fue posible cargar el perfil del cliente. Vuelve a iniciar sesión o contacta al equipo.
+            </p>
+          )}
           {profile.data && (
             <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
               <p>
@@ -121,6 +126,11 @@ export default function PortalPage() {
             <Gauge className="h-4 w-4" /> Mi plan
           </h2>
           {subscription.isLoading && <p className="text-sm text-slate-400">Cargando…</p>}
+          {subscription.isError && (
+            <p className="text-sm text-red-600" role="alert">
+              No fue posible consultar el plan. Si aún no fue asignado, el equipo técnico lo hará durante la instalación.
+            </p>
+          )}
           {subscription.data === null && (
             <p className="text-sm text-slate-500">Aún no tiene un plan asignado.</p>
           )}
@@ -152,6 +162,11 @@ export default function PortalPage() {
             <FileText className="h-4 w-4" /> Mis facturas
           </h2>
           {invoices.isLoading && <p className="text-sm text-slate-400">Cargando…</p>}
+          {invoices.isError && (
+            <p className="text-sm text-red-600" role="alert">
+              No fue posible consultar las facturas. Intenta nuevamente más tarde.
+            </p>
+          )}
           {invoices.data?.length === 0 && (
             <p className="text-sm text-slate-500">No tiene facturas registradas todavía.</p>
           )}

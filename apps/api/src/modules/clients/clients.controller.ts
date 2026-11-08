@@ -8,25 +8,37 @@ import {
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ClientStatus, Role } from '@prisma/client';
 import { Request } from 'express';
 import { Audited } from '../../common/decorators/audited.decorator';
 import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ClientsService, ClientWithUser } from './clients.service';
 import { ChangeClientStatusDto } from './dto/change-client-status.dto';
 import { CreateClientDto } from './dto/create-client.dto';
+import { PublicClientRegistrationDto } from './dto/public-client-registration.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { PublicRegistrationRateLimitGuard } from './public-registration-rate-limit.guard';
 
 type AuditableRequest = Request & { auditOldValues?: unknown };
 
 @ApiTags('clients')
 @ApiBearerAuth()
-@Controller('clients')
+@Controller(['clients', 'clientes'])
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
+
+  @Public()
+  @UseGuards(PublicRegistrationRateLimitGuard)
+  @Post('register')
+  @ApiOperation({ summary: 'Registro público de una cuenta de cliente' })
+  register(@Body() dto: PublicClientRegistrationDto): Promise<ClientWithUser> {
+    return this.clientsService.registerPublic(dto);
+  }
 
   @Get('me')
   @Roles(Role.CLIENT)

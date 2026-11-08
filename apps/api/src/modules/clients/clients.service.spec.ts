@@ -1,6 +1,7 @@
 import { ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ClientStatus, PaymentModality, Role, ServiceType } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ClientsService, STATUS_AUDIT_ACTION } from './clients.service';
 
@@ -53,12 +54,41 @@ describe('ClientsService', () => {
     expect(data.municipality).toBe('Cumbitara');
     expect(data.user.create.role).toBe(Role.CLIENT);
     expect(data.user.create.passwordHash).not.toBe('1085123456'); // hashed default
+    await expect(bcrypt.compare('1085123456', data.user.create.passwordHash)).resolves.toBe(true);
+    expect(data).not.toHaveProperty('subscriptions');
     expect(client.clientCode).toBe('CLI-1085123456');
   });
 
   it('rejects duplicated document/email', async () => {
     prismaMock.user.findFirst.mockResolvedValueOnce({ id: 'existing' });
     await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+  });
+
+  it('registers a public client with a chosen password and without a subscription', async () => {
+    prismaMock.user.findFirst.mockResolvedValueOnce(null);
+    prismaMock.client.create.mockImplementationOnce(({ data }) =>
+      Promise.resolve({ ...dbClient, ...data }),
+    );
+
+    await service.registerPublic({
+      documentId: '1085123456',
+      firstName: 'Rosa',
+      lastName: 'Delgado',
+      email: ' ROSA@correo.com ',
+      phone: '3151234567',
+      address: 'Calle 3 # 4-21',
+      serviceType: ServiceType.FIBER,
+      paymentModality: PaymentModality.POSTPAID,
+      password: 'ClaveSegura123',
+    });
+
+    const data = prismaMock.client.create.mock.calls[0][0].data;
+    expect(data.user.create.email).toBe('rosa@correo.com');
+    expect(data.user.create.role).toBe(Role.CLIENT);
+    await expect(
+      bcrypt.compare('ClaveSegura123', data.user.create.passwordHash),
+    ).resolves.toBe(true);
+    expect(data).not.toHaveProperty('subscriptions');
   });
 
   it('maps status transitions to audit actions (SUSPEND/REACTIVATE/CUT/CANCEL)', () => {
