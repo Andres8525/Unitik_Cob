@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Wifi } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { useAuthStore } from '../stores/auth';
+import BrandLogo from '../components/BrandLogo';
+import { ROLE_DASHBOARD_PATHS, useAuthStore } from '../stores/auth';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Ingrese su correo o número de cédula'),
@@ -15,8 +15,11 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const setSession = useAuthStore((state) => state.setSession);
   const [serverError, setServerError] = useState('');
+  const registered = (location.state as { registered?: boolean; email?: string } | null)?.registered;
+  const registeredEmail = (location.state as { registered?: boolean; email?: string } | null)?.email;
 
   const {
     register,
@@ -40,20 +43,23 @@ export default function LoginPage() {
       return;
     }
     const data = await response.json();
+    const role = data.user.role as keyof typeof ROLE_DASHBOARD_PATHS;
     setSession(data.user, data.accessToken, data.refreshToken);
-    navigate(data.user.role === 'CLIENT' ? '/portal' : '/panel');
+    navigate(ROLE_DASHBOARD_PATHS[role]);
   };
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-lg">
-        <div className="mb-6 flex items-center gap-3">
-          <Wifi className="h-9 w-9 text-unitik-600" />
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Unitik-Cob</h1>
-            <p className="text-xs text-slate-500">UNITIK Internet Sin Límite</p>
-          </div>
+        <div className="mb-6 flex justify-center">
+          <BrandLogo className="h-40 w-auto" />
         </div>
+
+        {registered && (
+          <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Registro exitoso. Ya puedes iniciar sesión con {registeredEmail ?? 'tu correo'}.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div>
@@ -99,9 +105,12 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
-          Clientes: ingresen con su cédula como usuario y contraseña inicial.
-        </p>
+        <div className="mt-4 flex items-center justify-between gap-2 text-xs text-slate-500">
+          <p>Clientes: cédula como usuario.</p>
+          <Link to="/registro" className="font-semibold text-unitik-600 hover:text-unitik-700">
+            Registrarse
+          </Link>
+        </div>
       </div>
     </main>
   );
