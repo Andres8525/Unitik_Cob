@@ -35,12 +35,12 @@ describe('InactivityModal', () => {
       props: { className: 'my-5 border-t border-slate-200' },
     });
     expect(dialogChildren[2]).toMatchObject({
-      props: { children: 'Su sesión expirará en 1 minuto por inactividad.' },
+      props: { children: 'Su sesión está pausada por inactividad.' },
     });
     expect(dialogChildren[3]).toMatchObject({
       props: {
         children:
-          'Por motivos de seguridad, cerraremos su sesión automáticamente. Presione el botón de abajo para permanecer activo en el sistema.',
+          'Por motivos de seguridad, confirme si desea salir o extender su sesión para continuar trabajando.',
       },
     });
     expect(logoutButton.props.children).toBe('Salir');

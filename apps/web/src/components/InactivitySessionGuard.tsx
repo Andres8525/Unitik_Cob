@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { refreshSession } from '../api/http';
 import { useAuthStore } from '../stores/auth';
 import InactivityModal from './InactivityModal';
-import { createInactivityTimers, INACTIVITY_LOGOUT_DELAY_MS } from './inactivityTimers';
+import { createInactivityTimers } from './inactivityTimers';
 
 export default function InactivitySessionGuard() {
   const navigate = useNavigate();
-  const userId = useAuthStore((state) => state.user?.id);
+  const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const timers = useRef<ReturnType<typeof createInactivityTimers> | null>(null);
   const warningActive = useRef(false);
@@ -16,7 +16,7 @@ export default function InactivitySessionGuard() {
   const [extensionError, setExtensionError] = useState<string>();
 
   useEffect(() => {
-    if (!userId) return;
+    if (!user || !['ADMIN', 'TECHNICIAN'].includes(user.role)) return;
 
     warningActive.current = false;
     const inactivityTimers = createInactivityTimers(
@@ -24,11 +24,6 @@ export default function InactivitySessionGuard() {
         warningActive.current = true;
         setWarningVisible(true);
         setExtensionError(undefined);
-      },
-      () => {
-        warningActive.current = false;
-        logout();
-        navigate('/login', { replace: true, state: { reason: 'inactivity' } });
       },
     );
     timers.current = inactivityTimers;
@@ -38,6 +33,7 @@ export default function InactivitySessionGuard() {
     };
     const activityEvents: Array<keyof WindowEventMap> = [
       'keydown',
+      'click',
       'mousemove',
       'pointerdown',
       'scroll',
@@ -56,7 +52,7 @@ export default function InactivitySessionGuard() {
         window.removeEventListener(eventName, resetWhileActive);
       }
     };
-  }, [logout, navigate, userId]);
+  }, [user, logout, navigate]);
 
   const handleLogout = () => {
     logout();
@@ -93,7 +89,6 @@ export default function InactivitySessionGuard() {
       isExtending={extending}
       onExtendSession={handleExtendSession}
       onLogout={handleLogout}
-      remainingSeconds={INACTIVITY_LOGOUT_DELAY_MS / 1000}
     />
   );
 }

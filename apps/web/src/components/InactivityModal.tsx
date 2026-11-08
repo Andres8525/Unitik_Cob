@@ -3,7 +3,6 @@ import { AlertTriangle } from 'lucide-react';
 interface InactivityModalProps {
   onLogout: () => void;
   onExtendSession: () => void;
-  remainingSeconds?: number;
   isExtending?: boolean;
   errorMessage?: string;
 }
@@ -11,13 +10,9 @@ interface InactivityModalProps {
 export default function InactivityModal({
   onLogout,
   onExtendSession,
-  remainingSeconds = 60,
   isExtending = false,
   errorMessage,
 }: InactivityModalProps) {
-  const expiryMessage =
-    remainingSeconds === 60 ? '1 minuto' : `${Math.max(remainingSeconds, 0)} segundos`;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <section
@@ -44,14 +39,14 @@ export default function InactivityModal({
         <div className="my-5 border-t border-slate-200" />
 
         <p className="text-sm font-semibold text-slate-900">
-          {`Su sesión expirará en ${expiryMessage} por inactividad.`}
+          Su sesión está pausada por inactividad.
         </p>
         <p
           className="mt-2 text-sm leading-relaxed text-slate-500"
           id="inactivity-modal-description"
         >
-          Por motivos de seguridad, cerraremos su sesión automáticamente. Presione el botón de abajo
-          para permanecer activo en el sistema.
+          Por motivos de seguridad, confirme si desea salir o extender su sesión para continuar
+          trabajando.
         </p>
         {errorMessage && (
           <p className="mt-3 text-sm text-red-600" role="alert">

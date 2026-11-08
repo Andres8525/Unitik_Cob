@@ -5,29 +5,22 @@ describe('createInactivityTimers', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('warns after inactivity and logs out one minute later', () => {
+  it('warns after 30 minutes of inactivity and pauses until reset', () => {
     const onWarning = vi.fn();
-    const onLogout = vi.fn();
-    createInactivityTimers(onWarning, onLogout, 1000, 60_000);
+    createInactivityTimers(onWarning, 30 * 60 * 1000);
 
-    vi.advanceTimersByTime(999);
+    vi.advanceTimersByTime(30 * 60 * 1000 - 1);
     expect(onWarning).not.toHaveBeenCalled();
-    expect(onLogout).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);
     expect(onWarning).toHaveBeenCalledOnce();
-    expect(onLogout).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(59_999);
-    expect(onLogout).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
-    expect(onLogout).toHaveBeenCalledOnce();
+    vi.advanceTimersByTime(60_000);
+    expect(onWarning).toHaveBeenCalledOnce();
   });
 
   it('resets the warning deadline after activity and cancels timers on cleanup', () => {
     const onWarning = vi.fn();
-    const onLogout = vi.fn();
-    const timers = createInactivityTimers(onWarning, onLogout, 1000, 60_000);
+    const timers = createInactivityTimers(onWarning, 1000);
 
     vi.advanceTimersByTime(900);
     timers.reset();
@@ -38,6 +31,6 @@ describe('createInactivityTimers', () => {
 
     timers.dispose();
     vi.advanceTimersByTime(60_000);
-    expect(onLogout).not.toHaveBeenCalled();
+    expect(onWarning).toHaveBeenCalledOnce();
   });
 });

@@ -33,7 +33,13 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       setSession: (user, accessToken, refreshToken) => set({ user, accessToken, refreshToken }),
-      logout: () => set({ user: null, accessToken: null, refreshToken: null }),
+      logout: () => {
+        set({ user: null, accessToken: null, refreshToken: null });
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem('unitik-auth');
+          window.localStorage.removeItem('unitik-auth');
+        }
+      },
     }),
     {
       name: 'unitik-auth',
