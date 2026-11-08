@@ -27,6 +27,7 @@ const SYSTEM_CONFIG: Array<{ key: string; value: string; description: string }> 
   { key: 'cut_off_day_start', value: '1', description: 'Inicio del rango de fechas de corte' },
   { key: 'cut_off_day_end', value: '10', description: 'Fin del rango de fechas de corte' },
   { key: 'double_payment_after_days', value: '30', description: 'Días de mora para aplicar doble mensualidad' },
+  { key: 'double_payment_enabled', value: 'true', description: 'Activar cobro de doble mensualidad por mora extrema' },
   { key: 'installation_fee_default', value: '50000', description: 'Costo de instalación por defecto (COP)' },
   { key: 'tv_service_price', value: '10000', description: 'Precio mensual del servicio de TV adicional (COP)' },
 ];

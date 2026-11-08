@@ -112,9 +112,10 @@ export class BillingService {
    * past the configured threshold, the double monthly fee.
    */
   async applyOverdueRules(now = new Date()): Promise<{ marked: number; doubled: number }> {
-    const [ratePercent, doubleAfterDays] = await Promise.all([
+    const [ratePercent, doubleAfterDays, doublePaymentEnabled] = await Promise.all([
       this.systemConfig.getNumber('interest_rate_percent'),
       this.systemConfig.getNumber('double_payment_after_days'),
+      this.systemConfig.getBoolean('double_payment_enabled'),
     ]);
 
     // 1. PENDING past due → OVERDUE + one-time interest
@@ -141,28 +142,30 @@ export class BillingService {
     }
 
     // 2. OVERDUE beyond threshold → double monthly fee (applied once)
-    const threshold = new Date(now.getTime() - doubleAfterDays * 86_400_000);
-    const overdue = await this.prisma.invoice.findMany({
-      where: { status: InvoiceStatus.OVERDUE, dueDate: { lt: threshold } },
-    });
     let doubled = 0;
-    for (const invoice of overdue) {
-      const alreadyDoubled =
-        Number(invoice.total) >= Number(invoice.subtotal) * 2 + Number(invoice.interest);
-      if (alreadyDoubled) continue;
+    if (doublePaymentEnabled) {
+      const threshold = new Date(now.getTime() - doubleAfterDays * 86_400_000);
+      const overdue = await this.prisma.invoice.findMany({
+        where: { status: InvoiceStatus.OVERDUE, dueDate: { lt: threshold } },
+      });
+      for (const invoice of overdue) {
+        const alreadyDoubled =
+          Number(invoice.total) >= Number(invoice.subtotal) * 2 + Number(invoice.interest);
+        if (alreadyDoubled) continue;
 
-      const updated = await this.prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { total: Number(invoice.total) + Number(invoice.subtotal) },
-      });
-      doubled += 1;
-      await this.auditService.record({
-        action: 'DOUBLE_BILLING',
-        entity: 'Invoice',
-        entityId: invoice.id,
-        oldValues: { total: Number(invoice.total) },
-        newValues: { total: Number(updated.total), afterDays: doubleAfterDays },
-      });
+        const updated = await this.prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { total: Number(invoice.total) + Number(invoice.subtotal) },
+        });
+        doubled += 1;
+        await this.auditService.record({
+          action: 'DOUBLE_BILLING',
+          entity: 'Invoice',
+          entityId: invoice.id,
+          oldValues: { total: Number(invoice.total) },
+          newValues: { total: Number(updated.total), afterDays: doubleAfterDays },
+        });
+      }
     }
 
     return { marked: toMark.length, doubled };

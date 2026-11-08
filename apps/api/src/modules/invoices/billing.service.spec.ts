@@ -24,6 +24,7 @@ describe('BillingService', () => {
       };
       return Promise.resolve(values[key]);
     }),
+    getBoolean: jest.fn().mockResolvedValue(true),
   };
   const auditMock = { record: jest.fn() };
   const queueMock = { add: jest.fn() };
@@ -160,6 +161,17 @@ describe('BillingService', () => {
       .mockResolvedValueOnce([{ ...overdue, total: 121500 }]);
     const secondRun = await service.applyOverdueRules(new Date('2026-07-07'));
     expect(secondRun.doubled).toBe(0);
+  });
+
+  it('does not apply the double monthly fee when the policy is disabled', async () => {
+    configMock.getBoolean.mockResolvedValueOnce(false);
+    prismaMock.invoice.findMany.mockResolvedValueOnce([]);
+
+    const result = await service.applyOverdueRules(new Date('2026-07-06'));
+
+    expect(result.doubled).toBe(0);
+    expect(prismaMock.invoice.findMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.invoice.update).not.toHaveBeenCalled();
   });
 
   it('discount cannot exceed the invoice total nor touch paid invoices', async () => {

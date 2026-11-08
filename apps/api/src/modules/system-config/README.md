@@ -4,7 +4,9 @@
 
 **Política ISO/IEC 38500 asociada:** Estrategia + Conformidad — todo cambio de parámetro queda auditado con valor anterior y nuevo, y quién lo cambió (`updatedBy`).
 
-**Parámetros sembrados:** `interest_rate_percent` (2.5), `grace_period_days` (7), `max_promise_days` (15), `cut_off_day_start` (1), `cut_off_day_end` (10), `double_payment_after_days` (30), `installation_fee_default` (50000), `tv_service_price` (10000).
+**Parámetros sembrados:** `interest_rate_percent` (2.5), `grace_period_days` (7), `max_promise_days` (15), `cut_off_day_start` (1), `cut_off_day_end` (10), `double_payment_after_days` (30), `double_payment_enabled` (true), `installation_fee_default` (50000), `tv_service_price` (10000).
+
+La configuración agrupada de corte y mora se consulta en `GET /api/system-config/policies` y se actualiza con `PATCH /api/system-config/policies`. El cambio se valida y audita como una sola operación.
 
 **Endpoints principales (ADMIN):**
 

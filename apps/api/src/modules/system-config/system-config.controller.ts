@@ -5,6 +5,7 @@ import { Request } from 'express';
 import { Audited } from '../../common/decorators/audited.decorator';
 import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { UpdateBillingPoliciesDto } from './dto/update-billing-policies.dto';
 import { UpdateConfigDto } from './dto/update-config.dto';
 import { SystemConfigService } from './system-config.service';
 
@@ -24,6 +25,25 @@ export class SystemConfigController {
   @ApiOperation({ summary: 'Listar todos los parámetros del sistema' })
   findAll(): Promise<SystemConfig[]> {
     return this.configService.findAll();
+  }
+
+  @Get('policies')
+  @ApiOperation({ summary: 'Consultar las políticas de facturación y corte' })
+  getBillingPolicies() {
+    return this.configService.getBillingPolicies();
+  }
+
+  @Patch('policies')
+  @Audited({ entity: 'SystemConfig', action: 'BILLING_POLICIES_UPDATED' })
+  @ApiOperation({ summary: 'Actualizar políticas globales de corte y mora (auditado)' })
+  async updateBillingPolicies(
+    @Body() dto: UpdateBillingPoliciesDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() request: Request & { auditOldValues?: unknown },
+  ) {
+    const result = await this.configService.updateBillingPolicies(dto, user.id);
+    request.auditOldValues = result.previous;
+    return result.configs;
   }
 
   @Get(':key')

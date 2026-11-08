@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SystemConfigService } from './system-config.service';
@@ -8,6 +9,7 @@ describe('SystemConfigService', () => {
 
   const prismaMock = {
     systemConfig: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    $transaction: jest.fn(),
   };
 
   const interestConfig = {
@@ -49,5 +51,67 @@ describe('SystemConfigService', () => {
     expect(previous.value).toBe('2.5');
     expect(config.value).toBe('3.0');
     expect(config.updatedBy).toBe('admin-1');
+  });
+
+  it('updates validated billing policies together and returns the previous policy values', async () => {
+    const values: Record<string, string> = {
+      cut_off_day_start: '1',
+      cut_off_day_end: '10',
+      interest_rate_percent: '2.5',
+      double_payment_enabled: 'true',
+    };
+    prismaMock.systemConfig.findUnique.mockImplementation(({ where }) =>
+      Promise.resolve({
+        key: where.key,
+        value: values[where.key],
+        description: where.key,
+        updatedBy: null,
+        updatedAt: new Date(),
+      }),
+    );
+    prismaMock.systemConfig.update.mockImplementation(({ where, data }) =>
+      Promise.resolve({
+        key: where.key,
+        value: data.value,
+        description: where.key,
+        updatedBy: data.updatedBy,
+        updatedAt: new Date(),
+      }),
+    );
+    prismaMock.$transaction.mockImplementation((updates) => Promise.all(updates));
+
+    const result = await service.updateBillingPolicies(
+      {
+        cutOffDayStart: 2,
+        cutOffDayEnd: 12,
+        interestRatePercent: 3,
+        doublePaymentEnabled: false,
+      },
+      'admin-1',
+    );
+
+    expect(result.previous).toEqual({
+      cutOffDayStart: 1,
+      cutOffDayEnd: 10,
+      interestRatePercent: 2.5,
+      doublePaymentEnabled: true,
+    });
+    expect(result.configs).toHaveLength(4);
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a cut-off range whose start day is after its end day', async () => {
+    await expect(
+      service.updateBillingPolicies(
+        {
+          cutOffDayStart: 15,
+          cutOffDayEnd: 10,
+          interestRatePercent: 2.5,
+          doublePaymentEnabled: true,
+        },
+        'admin-1',
+      ),
+    ).rejects.toThrow(BadRequestException);
+    expect(prismaMock.systemConfig.findUnique).not.toHaveBeenCalled();
   });
 });
