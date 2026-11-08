@@ -4,11 +4,17 @@ import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import BrandLogo from '../components/BrandLogo';
-import { ROLE_DASHBOARD_PATHS, useAuthStore } from '../stores/auth';
+import { ROLE_DASHBOARD_PATHS, useAuthStore, type SessionUser } from '../stores/auth';
+
+interface LoginResponse {
+  user: SessionUser;
+  accessToken: string;
+  refreshToken: string;
+}
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Ingrese su correo o número de cédula'),
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -18,8 +24,6 @@ export default function LoginPage() {
   const location = useLocation();
   const setSession = useAuthStore((state) => state.setSession);
   const [serverError, setServerError] = useState('');
-  const registered = (location.state as { registered?: boolean; email?: string } | null)?.registered;
-  const registeredEmail = (location.state as { registered?: boolean; email?: string } | null)?.email;
 
   const {
     register,
@@ -29,23 +33,33 @@ export default function LoginPage() {
 
   const onSubmit = async (form: LoginForm) => {
     setServerError('');
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    if (!response.ok) {
-      setServerError(
-        response.status === 401
-          ? 'Credenciales incorrectas. Verifique su documento/correo y contraseña.'
-          : 'No fue posible iniciar sesión. Intente de nuevo.',
-      );
-      return;
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!response.ok) {
+        setServerError(
+          response.status === 401
+            ? 'Credenciales incorrectas o cuenta no registrada. El personal autorizado debe crear la cuenta del cliente.'
+            : 'No fue posible iniciar sesión. Intente de nuevo.',
+        );
+        return;
+      }
+      const data = (await response.json()) as LoginResponse;
+      setSession(data.user, data.accessToken, data.refreshToken);
+      const requestedPath = (location.state as { from?: { pathname?: string } } | null)?.from
+        ?.pathname;
+      const canRegisterClients = data.user.role === 'ADMIN' || data.user.role === 'TECHNICIAN';
+      const registrationPath =
+        canRegisterClients && (requestedPath === '/registro' || requestedPath === '/clientes/nuevo')
+          ? requestedPath
+          : null;
+      navigate(registrationPath ?? ROLE_DASHBOARD_PATHS[data.user.role], { replace: true });
+    } catch {
+      setServerError('No se pudo conectar con el servidor. Verifica que el backend esté disponible.');
     }
-    const data = await response.json();
-    const role = data.user.role as keyof typeof ROLE_DASHBOARD_PATHS;
-    setSession(data.user, data.accessToken, data.refreshToken);
-    navigate(ROLE_DASHBOARD_PATHS[role]);
   };
 
   return (
@@ -54,12 +68,6 @@ export default function LoginPage() {
         <div className="mb-6 flex justify-center">
           <BrandLogo className="h-40 w-auto" />
         </div>
-
-        {registered && (
-          <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            Registro exitoso. Ya puedes iniciar sesión con {registeredEmail ?? 'tu correo'}.
-          </p>
-        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div>
@@ -105,11 +113,15 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-4 flex items-center justify-between gap-2 text-xs text-slate-500">
-          <p>Clientes: cédula como usuario.</p>
-          <Link to="/registro" className="font-semibold text-unitik-600 hover:text-unitik-700">
-            Registrarse
+        <div className="mt-4 text-center text-xs text-slate-500">
+          <p>Los clientes ingresan con su correo o documento y pueden crear una cuenta desde aquí.</p>
+          <Link
+            to="/registro"
+            className="mt-3 inline-flex rounded-lg border border-unitik-200 px-4 py-2 font-semibold text-unitik-700 transition hover:bg-unitik-50"
+          >
+            Crear cuenta de cliente
           </Link>
+          <p className="mt-1">Regístrate para acceder al portal del cliente.</p>
         </div>
       </div>
     </main>
