@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { formatCop } from '@unitik/shared-types';
+import BrandLogo from '../../components/BrandLogo';
 import { api } from '../../api/http';
 import { useAuthStore } from '../../stores/auth';
 
@@ -111,8 +112,8 @@ export default function AdminPanelPage() {
     <main className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Wifi className="h-7 w-7 text-unitik-600" />
+          <div className="flex items-center gap-3">
+            <BrandLogo className="h-12 w-auto" />
             <h1 className="text-lg font-bold text-slate-900">
               Panel Administrador — {user?.firstName}
             </h1>

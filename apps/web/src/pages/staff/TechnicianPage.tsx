@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LogOut, Wifi, Wrench } from 'lucide-react';
+import { LogOut, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import BrandLogo from '../../components/BrandLogo';
 import { api } from '../../api/http';
 import { useAuthStore } from '../../stores/auth';
 
@@ -55,8 +56,8 @@ export default function TechnicianPage() {
     <main className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="mx-auto max-w-3xl space-y-6">
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Wifi className="h-7 w-7 text-unitik-600" />
+          <div className="flex items-center gap-3">
+            <BrandLogo className="h-12 w-auto" />
             <h1 className="text-lg font-bold text-slate-900">
               Técnico — {user?.firstName}
             </h1>
