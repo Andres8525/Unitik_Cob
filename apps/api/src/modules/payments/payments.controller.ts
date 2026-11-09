@@ -18,6 +18,7 @@ import { Audited } from '../../common/decorators/audited.decorator';
 import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RegisterCashPaymentDto } from './dto/register-cash-payment.dto';
 import { RegisterPaymentDto } from './dto/register-payment.dto';
 import { ValidatePaymentDto } from './dto/validate-payment.dto';
 import { PaymentsService } from './payments.service';
@@ -47,8 +48,23 @@ export class PaymentsController {
   @Roles(Role.ADMIN, Role.CASHIER, Role.CLIENT)
   @Audited({ entity: 'Payment' })
   @ApiOperation({ summary: 'Registrar un pago (queda pendiente de validación)' })
-  register(@Body() dto: RegisterPaymentDto): Promise<Payment> {
-    return this.paymentsService.register(dto);
+  register(
+    @Body() dto: RegisterPaymentDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<Payment> {
+    return this.paymentsService.register(dto, user);
+  }
+
+  @Post('cash')
+  @Roles(Role.CASHIER)
+  @ApiOperation({
+    summary: 'Registrar y validar un pago total en efectivo (solo cajero; encola reconexión)',
+  })
+  registerCash(
+    @Body() dto: RegisterCashPaymentDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<Payment> {
+    return this.paymentsService.registerCash(dto.invoiceId, user);
   }
 
   @Get(':id')

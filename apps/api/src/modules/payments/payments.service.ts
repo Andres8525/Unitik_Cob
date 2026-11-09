@@ -13,6 +13,7 @@ import {
   Payment,
   PaymentMethod,
   PaymentStatus,
+  Role,
 } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
@@ -43,9 +44,19 @@ export class PaymentsService {
   ) {}
 
   /** Registers a payment. Nequi/transfer always start PENDING_VALIDATION. */
-  async register(dto: RegisterPaymentDto): Promise<Payment> {
-    const invoice = await this.prisma.invoice.findUnique({ where: { id: dto.invoiceId } });
+  async register(dto: RegisterPaymentDto, user: AuthenticatedUser): Promise<Payment> {
+    if (dto.paymentMethod === PaymentMethod.CASH && user.role !== Role.CASHIER) {
+      throw new ForbiddenException('Solo el cajero puede registrar pagos en efectivo');
+    }
+
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: dto.invoiceId },
+      include: { client: { select: { userId: true } } },
+    });
     if (!invoice) throw new NotFoundException('Factura no encontrada');
+    if (user.role === Role.CLIENT && invoice.client.userId !== user.id) {
+      throw new ForbiddenException('No puedes registrar pagos para facturas de otro cliente');
+    }
     if (invoice.status === InvoiceStatus.CANCELLED) {
       throw new ConflictException('La factura está anulada');
     }
@@ -61,6 +72,74 @@ export class PaymentsService {
         paidAt: new Date(),
       },
     });
+  }
+
+  /** Cash payments are settled immediately and trigger the standard reconnection event. */
+  async registerCash(invoiceId: string, user: AuthenticatedUser): Promise<Payment> {
+    if (user.role !== Role.CASHIER) {
+      throw new ForbiddenException('Solo el cajero puede registrar pagos en efectivo');
+    }
+
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { client: true },
+    });
+    if (!invoice) throw new NotFoundException('Factura no encontrada');
+    if (invoice.status === InvoiceStatus.CANCELLED) {
+      throw new ConflictException('La factura está anulada');
+    }
+    if (invoice.status === InvoiceStatus.PAID) {
+      throw new ConflictException('La factura ya está pagada');
+    }
+
+    const validatedAt = new Date();
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const claim = await tx.invoice.updateMany({
+        where: {
+          id: invoiceId,
+          status: { in: [InvoiceStatus.PENDING, InvoiceStatus.OVERDUE, InvoiceStatus.PROMISE_TO_PAY] },
+        },
+        data: { status: InvoiceStatus.PAID },
+      });
+      if (claim.count !== 1) {
+        throw new ConflictException('La factura ya fue procesada por otro pago');
+      }
+
+      return tx.payment.create({
+        data: {
+          invoiceId,
+          amount: invoice.total,
+          paymentMethod: PaymentMethod.CASH,
+          status: PaymentStatus.VALIDATED,
+          validatedBy: user.id,
+          validatedAt,
+          paidAt: validatedAt,
+        },
+      });
+    });
+
+    await this.promisesService.markFulfilled(invoiceId);
+    await this.auditService.record({
+      userId: user.id,
+      action: 'CASH_PAYMENT',
+      entity: 'Payment',
+      entityId: payment.id,
+      newValues: {
+        invoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        clientId: invoice.clientId,
+        amount: Number(invoice.total),
+        paymentMethod: PaymentMethod.CASH,
+        validatedAt: validatedAt.toISOString(),
+      },
+      policyRef: PaymentReconnectionPolicy.POLICY_REF,
+    });
+    this.eventEmitter.emit(
+      PaymentReconnectionPolicy.PAYMENT_VALIDATED_EVENT,
+      new PaymentValidatedEvent(payment.id, invoiceId, invoice.clientId, validatedAt),
+    );
+
+    return payment;
   }
 
   async findOne(id: string): Promise<Payment> {
