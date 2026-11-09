@@ -8,9 +8,12 @@ import ListaPlanes from './pages/admin/ListaPlanes';
 import ConfiguracionPoliticas from './pages/admin/ConfiguracionPoliticas';
 import NuevoClientePage from './pages/admin/NuevoClientePage';
 import CajeroDashboardPage from './pages/cajero/CajeroDashboardPage';
-import PortalPage from './pages/client/PortalPage';
+import PanelCajero from './pages/cajero/PanelCajero';
+import PortalCliente from './pages/client/PortalCliente';
+import HistorialNotificaciones from './pages/client/HistorialNotificaciones';
 import PublicClientRegistrationPage from './pages/PublicClientRegistrationPage';
 import TecnicoDashboardPage from './pages/tecnico/TecnicoDashboardPage';
+import ActaInstalacion from './pages/tecnico/ActaInstalacion';
 
 export default function App() {
   return (
@@ -28,14 +31,17 @@ export default function App() {
 
       <Route element={<ProtectedRoute roles={['TECHNICIAN']} />}>
         <Route path="/tecnico/dashboard" element={<TecnicoDashboardPage />} />
+        <Route path="/tecnico/instalaciones" element={<ActaInstalacion />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={['CASHIER']} />}>
         <Route path="/cajero/dashboard" element={<CajeroDashboardPage />} />
+        <Route path="/cajero/pagos" element={<PanelCajero />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={['CLIENT']} />}>
-        <Route path="/cliente/portal" element={<PortalPage />} />
+        <Route path="/cliente/portal" element={<PortalCliente />} />
+        <Route path="/cliente/notificaciones" element={<HistorialNotificaciones />} />
       </Route>
 
       <Route element={<ProtectedRoute roles={['ADMIN', 'TECHNICIAN']} />}>

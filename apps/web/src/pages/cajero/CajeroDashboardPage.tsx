@@ -1,4 +1,5 @@
 import { Banknote, ClipboardList, Search, WalletCards } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
 
 const navItems: DashboardNavItem[] = [
@@ -27,6 +28,14 @@ export default function CajeroDashboardPage() {
           </div>
         ))}
       </section>
+
+      <Link
+        className="inline-flex min-h-12 items-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+        to="/cajero/pagos"
+      >
+        <Search className="h-4 w-4" aria-hidden="true" />
+        Buscar cliente y registrar pago
+      </Link>
 
       <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
         <h3 className="mb-3 font-semibold text-slate-700">Últimos recaudos</h3>
