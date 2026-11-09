@@ -11,6 +11,7 @@ describe('ClientsService', () => {
   const prismaMock = {
     user: { findFirst: jest.fn() },
     client: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), findMany: jest.fn() },
+    networkAccess: { findFirst: jest.fn() },
   };
 
   const createDto = {
@@ -52,6 +53,7 @@ describe('ClientsService', () => {
     const data = prismaMock.client.create.mock.calls[0][0].data;
     expect(data.clientCode).toBe('CLI-1085123456');
     expect(data.municipality).toBe('Cumbitara');
+    expect(data.status).toBe(ClientStatus.SUSPENDED);
     expect(data.user.create.role).toBe(Role.CLIENT);
     expect(data.user.create.passwordHash).not.toBe('1085123456'); // hashed default
     await expect(bcrypt.compare('1085123456', data.user.create.passwordHash)).resolves.toBe(true);
@@ -119,5 +121,18 @@ describe('ClientsService', () => {
     await expect(
       service.changeStatus('client-1', { status: ClientStatus.SUSPENDED, reason: 'x' }),
     ).rejects.toThrow(ConflictException);
+  });
+
+  it('does not activate a client until a network access has been registered', async () => {
+    prismaMock.client.findUnique.mockResolvedValueOnce({
+      ...dbClient,
+      status: ClientStatus.SUSPENDED,
+    });
+    prismaMock.networkAccess.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      service.changeStatus('client-1', { status: ClientStatus.ACTIVE }),
+    ).rejects.toThrow('No se puede activar al cliente');
+    expect(prismaMock.client.update).not.toHaveBeenCalled();
   });
 });

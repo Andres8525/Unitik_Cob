@@ -5,18 +5,35 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIP,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   IsUUID,
   IsUrl,
+  Matches,
 } from 'class-validator';
 
 export class CreateInstallationDto {
   @ApiProperty()
   @IsUUID('4')
   clientId!: string;
+
+  @ApiProperty({ description: 'RouterBoard o dispositivo de red donde se registra el acceso' })
+  @IsUUID('4')
+  deviceId!: string;
+
+  @ApiProperty({ example: 'AA:BB:CC:DD:EE:FF' })
+  @IsString()
+  @Matches(/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/, {
+    message: 'La dirección MAC debe tener formato XX:XX:XX:XX:XX:XX',
+  })
+  macAddress!: string;
+
+  @ApiProperty({ example: '192.168.10.25' })
+  @IsIP('4', { message: 'La dirección IPv4 no es válida' })
+  ipAddress!: string;
 
   @ApiProperty({ enum: ServiceType })
   @IsEnum(ServiceType)
@@ -39,6 +56,11 @@ export class CreateInstallationDto {
   @IsOptional()
   @IsBoolean()
   clientPaidEquipment?: boolean;
+
+  @ApiPropertyOptional({ description: 'La instalación requiere costos adicionales de equipo/cableado' })
+  @IsOptional()
+  @IsBoolean()
+  aplicarCostosExtra?: boolean;
 
   @ApiPropertyOptional({ example: 'Señal -58 dBm; se fijó mástil de 3 m' })
   @IsOptional()

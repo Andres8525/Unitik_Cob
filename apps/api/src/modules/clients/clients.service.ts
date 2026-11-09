@@ -72,6 +72,7 @@ export class ClientsService {
           serviceType: dto.serviceType,
           paymentModality: dto.paymentModality,
           installationDate: new Date(dto.installationDate),
+          status: ClientStatus.SUSPENDED,
           user: {
             create: {
               documentId: dto.documentId,
@@ -101,13 +102,13 @@ export class ClientsService {
     const where: Prisma.ClientWhereInput = {};
     if (filters.status) where.status = filters.status;
     if (filters.search) {
-      where.user = {
-        OR: [
-          { firstName: { contains: filters.search, mode: 'insensitive' } },
-          { lastName: { contains: filters.search, mode: 'insensitive' } },
-          { documentId: { contains: filters.search } },
-        ],
-      };
+      const search = filters.search.trim();
+      where.OR = [
+        { clientCode: { contains: search, mode: 'insensitive' } },
+        { user: { firstName: { contains: search, mode: 'insensitive' } } },
+        { user: { lastName: { contains: search, mode: 'insensitive' } } },
+        { user: { documentId: { contains: search } } },
+      ];
     }
     return this.prisma.client.findMany({
       where,
@@ -164,6 +165,18 @@ export class ClientsService {
     const previous = await this.findOne(id);
     if (previous.status === dto.status) {
       throw new ConflictException(`El cliente ya está en estado ${dto.status}`);
+    }
+
+    if (dto.status === ClientStatus.ACTIVE) {
+      const access = await this.prisma.networkAccess.findFirst({
+        where: { clientId: id },
+        select: { id: true },
+      });
+      if (!access) {
+        throw new ConflictException(
+          'No se puede activar al cliente sin registrar primero el equipo en el acta de instalación',
+        );
+      }
     }
 
     const client = await this.prisma.client.update({

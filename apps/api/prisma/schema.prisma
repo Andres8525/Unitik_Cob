@@ -314,6 +314,7 @@ model InstallationRecord {
   cableMeters         Float? // for radio link
   equipmentList       Json // equipment used
   clientPaidEquipment Boolean     @default(false)
+  extraCostsApplied   Boolean     @default(false)
   observations        String?
   installationDate    DateTime
   signedUrl           String? // client digital signature
