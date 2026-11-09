@@ -1,12 +1,17 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { ClientStatus, MetricType, Phase } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ClientStatus, MetricType, NetworkAccess, NetworkDevice, Phase } from '@prisma/client';
 import { Job } from 'bullmq';
 import { ServiceContinuityPolicy } from '../governance/service-continuity.policy';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NETWORK_ACTIONS_QUEUE } from '../../queues/queues.module';
 import { MikrotikService } from './mikrotik.service';
+import {
+  ROUTER_RECONNECTION_FAILED_EVENT,
+  RouterReconnectionFailedEvent,
+} from './events/router-reconnection-failed.event';
 
 export interface ReconnectionJobData {
   networkAccessId: string;
@@ -53,6 +58,7 @@ export class NetworkActionsProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly mikrotik: MikrotikService,
     private readonly auditService: AuditService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -75,7 +81,22 @@ export class NetworkActionsProcessor extends WorkerHost {
     const access = await this.loadAccess(networkAccessId, `pago ${paymentId}`);
     if (!access) return;
 
-    await this.mikrotik.enableClient(access.deviceId, access.pppoeUser as string);
+    try {
+      await this.mikrotik.enableClient(access.deviceId, access.pppoeUser);
+    } catch (error) {
+      const attemptsLimit = job.opts.attempts ?? continuity.maxAttempts();
+      const attemptNumber = job.attemptsMade + 1;
+      if (attemptNumber >= attemptsLimit) {
+        await this.recordReconnectionFailure({
+          access,
+          clientId,
+          paymentId,
+          attemptNumber,
+          error,
+        });
+      }
+      throw error;
+    }
 
     const now = new Date();
     await this.prisma.$transaction([
@@ -105,6 +126,64 @@ export class NetworkActionsProcessor extends WorkerHost {
       },
     });
     this.logger.log(`Reconectado cliente=${clientId} en ${minutes.toFixed(2)} min (SLA 5 min)`);
+  }
+
+  private async recordReconnectionFailure({
+    access,
+    clientId,
+    paymentId,
+    attemptNumber,
+    error,
+  }: {
+    access: {
+      id: string;
+      deviceId: string;
+      ipAssigned: string | null;
+      macAddress: string | null;
+    };
+    clientId: string;
+    paymentId: string;
+    attemptNumber: number;
+    error: unknown;
+  }): Promise<void> {
+    if (!access) return;
+
+    const reason =
+      error instanceof Error ? error.message.replace(/[\r\n]/g, ' ').slice(0, 250) : 'Fallo desconocido de RouterBoard';
+    const failedAt = new Date();
+    const event = new RouterReconnectionFailedEvent(
+      clientId,
+      access.id,
+      paymentId,
+      access.deviceId,
+      access.ipAssigned,
+      access.macAddress,
+      attemptNumber,
+      reason,
+      failedAt,
+    );
+
+    await this.auditService.record({
+      action: 'RECONNECT_FAILED',
+      entity: 'NetworkAccess',
+      entityId: access.id,
+      newValues: {
+        clientId,
+        paymentId,
+        deviceId: access.deviceId,
+        ipAssigned: access.ipAssigned,
+        macAddress: access.macAddress,
+        attempts: attemptNumber,
+        reason,
+        failedAt: failedAt.toISOString(),
+      },
+      policyRef: POLICY_REF,
+    });
+
+    this.logger.error(
+      `Reconexión RouterBoard agotó ${attemptNumber} intentos para cliente=${clientId}, acceso=${access.id}: ${reason}`,
+    );
+    this.eventEmitter.emit(ROUTER_RECONNECTION_FAILED_EVENT, event);
   }
 
   private async suspend(job: Job<SuspensionJobData>): Promise<void> {
@@ -158,7 +237,10 @@ export class NetworkActionsProcessor extends WorkerHost {
   }
 
   /** Loads the access or audits the anomaly (no retry for missing data). */
-  private async loadAccess(networkAccessId: string, context: string) {
+  private async loadAccess(
+    networkAccessId: string,
+    context: string,
+  ): Promise<(NetworkAccess & { device: NetworkDevice; pppoeUser: string }) | null> {
     const access = await this.prisma.networkAccess.findUnique({
       where: { id: networkAccessId },
       include: { device: true },
@@ -173,6 +255,6 @@ export class NetworkActionsProcessor extends WorkerHost {
       });
       return null;
     }
-    return access;
+    return { ...access, pppoeUser: access.pppoeUser };
   }
 }

@@ -11,6 +11,10 @@ import { Server, Socket } from 'socket.io';
 import { PaymentReconnectionPolicy } from '../governance/payment-reconnection.policy';
 import { PaymentValidatedEvent } from '../payments/events/payment-validated.event';
 import { JwtPayload } from '../auth/auth.types';
+import {
+  ROUTER_RECONNECTION_FAILED_EVENT,
+  RouterReconnectionFailedEvent,
+} from '../network/events/router-reconnection-failed.event';
 
 /**
  * Real-time in-app notifications for the staff panel (Socket.io).
@@ -52,6 +56,10 @@ export class EventsGateway implements OnGatewayConnection {
     this.server.to('ADMIN').to('CASHIER').to('TECHNICIAN').emit(event, payload);
   }
 
+  private emitToTechnicians(event: string, payload: unknown): void {
+    this.server.to('TECHNICIAN').emit(event, payload);
+  }
+
   @OnEvent(PaymentReconnectionPolicy.PAYMENT_VALIDATED_EVENT)
   onPaymentValidated(event: PaymentValidatedEvent): void {
     this.emitToStaff('payment.validated', {
@@ -59,6 +67,22 @@ export class EventsGateway implements OnGatewayConnection {
       clientId: event.clientId,
       at: event.validatedAt,
       message: 'Pago validado: reconexión encolada',
+    });
+  }
+
+  @OnEvent(ROUTER_RECONNECTION_FAILED_EVENT)
+  onRouterReconnectionFailed(event: RouterReconnectionFailedEvent): void {
+    this.emitToTechnicians(ROUTER_RECONNECTION_FAILED_EVENT, {
+      clientId: event.clientId,
+      networkAccessId: event.networkAccessId,
+      paymentId: event.paymentId,
+      deviceId: event.deviceId,
+      ipAssigned: event.ipAssigned,
+      macAddress: event.macAddress,
+      attempts: event.attempts,
+      reason: event.reason,
+      failedAt: event.failedAt,
+      message: 'No fue posible reconectar automáticamente al cliente.',
     });
   }
 }

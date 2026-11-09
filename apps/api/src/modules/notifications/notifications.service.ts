@@ -1,7 +1,17 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Notification, NotificationChannel, NotificationStatus } from '@prisma/client';
+import { OnEvent } from '@nestjs/event-emitter';
+import {
+  Notification,
+  NotificationChannel,
+  NotificationStatus,
+  Role,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  ROUTER_RECONNECTION_FAILED_EVENT,
+  RouterReconnectionFailedEvent,
+} from '../network/events/router-reconnection-failed.event';
 
 /**
  * Notification dispatcher. Channels run in MOCK mode until UNITIK contracts
@@ -38,6 +48,43 @@ export class NotificationsService {
       where: { id },
       data: { status: NotificationStatus.READ },
     });
+  }
+
+  @OnEvent(ROUTER_RECONNECTION_FAILED_EVENT)
+  async notifyTechniciansOfReconnectionFailure(
+    event: RouterReconnectionFailedEvent,
+  ): Promise<void> {
+    try {
+      const technicians = await this.prisma.user.findMany({
+        where: { role: Role.TECHNICIAN, isActive: true },
+        select: { id: true },
+      });
+      if (technicians.length === 0) {
+        this.logger.warn(
+          `Fallo de reconexión para cliente=${event.clientId}; no hay técnicos activos para notificar`,
+        );
+        return;
+      }
+
+      await this.prisma.notification.createMany({
+        data: technicians.map(({ id }) => ({
+          userId: id,
+          channel: NotificationChannel.IN_APP,
+          type: 'ROUTER_RECONNECTION_FAILED',
+          content:
+            `Falló la reconexión del cliente ${event.clientId} después de ${event.attempts} intentos. ` +
+            `Acceso: ${event.networkAccessId}. IP: ${event.ipAssigned ?? 'sin asignar'}. ` +
+            `MAC: ${event.macAddress ?? 'sin registrar'}. Motivo: ${event.reason}`,
+          status: NotificationStatus.SENT,
+          sentAt: event.failedAt,
+        })),
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo guardar la notificación de reconexión fallida para cliente=${event.clientId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   /** Dispatches PENDING notifications (called by cron; mock channels). */

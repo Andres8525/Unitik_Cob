@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Job } from 'bullmq';
 import { ServiceContinuityPolicy } from '../governance/service-continuity.policy';
 import { AuditService } from '../audit/audit.service';
@@ -21,6 +22,7 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
     changeUserProfile: jest.fn(),
   };
   const auditMock = { record: jest.fn() };
+  const eventEmitterMock = { emit: jest.fn() };
 
   const access = {
     id: 'access-1',
@@ -32,7 +34,8 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
     device: { id: 'device-1' },
   };
 
-  const jobOf = (name: string, data: object) => ({ name, data, attemptsMade: 0 }) as Job;
+  const jobOf = (name: string, data: object, attemptsMade = 0) =>
+    ({ name, data, attemptsMade, opts: { attempts: 5 } }) as Job;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -42,6 +45,7 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: MikrotikService, useValue: mikrotikMock },
         { provide: AuditService, useValue: auditMock },
+        { provide: EventEmitter2, useValue: eventEmitterMock },
       ],
     }).compile();
     processor = moduleRef.get(NetworkActionsProcessor);
@@ -136,5 +140,52 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
         }),
       ),
     ).rejects.toThrow('RouterBoard caída');
+    expect(eventEmitterMock.emit).not.toHaveBeenCalled();
+  });
+
+  it('audita y notifica al técnico solo al agotarse los reintentos de reconexión', async () => {
+    prismaMock.networkAccess.findUnique.mockResolvedValueOnce({
+      ...access,
+      ipAssigned: '192.0.2.10',
+      macAddress: 'AA:BB:CC:DD:EE:FF',
+    });
+    mikrotikMock.enableClient.mockRejectedValueOnce(new Error('RouterBoard timeout'));
+
+    await expect(
+      processor.process(
+        jobOf(
+          'reconnect',
+          {
+            networkAccessId: 'access-1',
+            clientId: 'client-1',
+            paymentId: 'pay-1',
+            validatedAt: new Date().toISOString(),
+          },
+          4,
+        ),
+      ),
+    ).rejects.toThrow('RouterBoard timeout');
+
+    expect(auditMock.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'RECONNECT_FAILED',
+        entity: 'NetworkAccess',
+        entityId: 'access-1',
+        newValues: expect.objectContaining({
+          clientId: 'client-1',
+          paymentId: 'pay-1',
+          attempts: 5,
+          reason: 'RouterBoard timeout',
+        }),
+      }),
+    );
+    expect(eventEmitterMock.emit).toHaveBeenCalledWith(
+      'router.reconexion.fallida',
+      expect.objectContaining({
+        clientId: 'client-1',
+        networkAccessId: 'access-1',
+        attempts: 5,
+      }),
+    );
   });
 });
