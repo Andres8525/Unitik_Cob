@@ -31,12 +31,20 @@ export default function TecnicoDashboardPage() {
       </section>
 
       <div>
-        <Link
-          className="inline-flex items-center gap-2 rounded-lg bg-unitik-600 px-4 py-2 text-sm font-semibold text-white hover:bg-unitik-700"
-          to="/clientes/nuevo"
-        >
-          Registrar cliente
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            className="inline-flex items-center gap-2 rounded-lg bg-unitik-600 px-4 py-2 text-sm font-semibold text-white hover:bg-unitik-700"
+            to="/tecnico/instalaciones"
+          >
+            Nueva acta de instalación
+          </Link>
+          <Link
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            to="/clientes/nuevo"
+          >
+            Registrar cliente
+          </Link>
+        </div>
       </div>
 
       <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
