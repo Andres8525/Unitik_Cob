@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Wifi } from 'lucide-react';
+import { demoApi, isDemoMode } from '../api/demo';
+import { apiUrl } from '../api/http';
 
 interface HealthResponse {
   status: 'ok' | 'degraded';
@@ -8,7 +10,8 @@ interface HealthResponse {
 }
 
 async function fetchHealth(): Promise<HealthResponse> {
-  const response = await fetch('/health');
+  if (isDemoMode()) return demoApi<HealthResponse>('/health');
+  const response = await fetch(apiUrl('/health'));
   if (!response.ok) throw new Error('No se pudo consultar el estado del sistema');
   return response.json() as Promise<HealthResponse>;
 }
@@ -30,12 +33,20 @@ export default function HomePage() {
         <p className="mb-4 text-sm text-slate-600">
           Sistema integrador OSS/BSS — Gobernanza de TI ISO/IEC 38500. Fase 1 (Inicio) de OpenUP.
         </p>
+        {isDemoMode() && (
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Modo de demostración: no hay backend conectado y el estado de las integraciones no es
+            real.
+          </p>
+        )}
 
         <div className="rounded-lg border border-slate-200 p-4">
           <h2 className="mb-2 text-sm font-semibold text-slate-700">Estado del sistema</h2>
           {isLoading && <p className="text-sm text-slate-400">Consultando…</p>}
           {isError && (
-            <p className="text-sm text-red-600">API no disponible. Verifique que el backend esté en ejecución.</p>
+            <p className="text-sm text-red-600">
+              API no disponible. Verifique que el backend esté en ejecución.
+            </p>
           )}
           {data && (
             <ul className="space-y-1 text-sm">

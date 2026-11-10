@@ -1,4 +1,5 @@
 import { useAuthStore } from '../stores/auth';
+import { demoApi, demoSession, isDemoMode } from './demo';
 
 export class ApiError extends Error {
   constructor(
@@ -9,12 +10,19 @@ export class ApiError extends Error {
   }
 }
 
+export function apiUrl(path: string): string {
+  const baseUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') ?? '';
+  return `${baseUrl}${path}`;
+}
+
 /**
  * Minimal API client. On 401 it tries one refresh with the stored refresh
  * token before logging the session out (Cumbitara-friendly: TanStack Query
  * retries around this add resilience to flaky connectivity).
  */
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  if (isDemoMode()) return demoApi<T>(path, options);
+
   const response = await withAuth(path, options);
   if (response.status === 401 && useAuthStore.getState().refreshToken) {
     const refreshed = await refreshSession();
@@ -29,7 +37,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
 function withAuth(path: string, options: RequestInit): Promise<Response> {
   const token = useAuthStore.getState().accessToken;
-  return fetch(`/api${path}`, {
+  return fetch(apiUrl(`/api${path}`), {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -42,8 +50,15 @@ function withAuth(path: string, options: RequestInit): Promise<Response> {
 export async function refreshSession(): Promise<boolean> {
   const { refreshToken, setSession } = useAuthStore.getState();
   if (!refreshToken) return false;
+  if (isDemoMode()) {
+    const user = useAuthStore.getState().user;
+    if (!user) return false;
+    const session = demoSession(user.role);
+    setSession(session.user, session.accessToken, session.refreshToken);
+    return true;
+  }
 
-  const response = await fetch('/api/auth/refresh', {
+  const response = await fetch(apiUrl('/api/auth/refresh'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),

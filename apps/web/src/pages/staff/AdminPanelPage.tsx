@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { formatCop } from '@unitik/shared-types';
 import BrandLogo from '../../components/BrandLogo';
-import { api } from '../../api/http';
+import { api, apiUrl } from '../../api/http';
+import { isDemoMode } from '../../api/demo';
 import { useAuthStore } from '../../stores/auth';
 
 interface Kpis {
@@ -48,7 +49,18 @@ interface LiveEvent {
 
 /** Descarga un CSV autenticado (el header Authorization no viaja en <a href>). */
 async function downloadCsv(path: string, filename: string, token: string | null) {
-  const response = await fetch(`/api${path}`, {
+  if (isDemoMode()) {
+    const blob = new Blob([await api<string>(path)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  const response = await fetch(apiUrl(`/api${path}`), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   const blob = await response.blob();
@@ -78,9 +90,29 @@ export default function AdminPanelPage() {
   // Notificaciones en tiempo real (WebSocket autenticado)
   useEffect(() => {
     if (!accessToken) return;
-    const socket = io('/ws', { auth: { token: accessToken } });
+    if (isDemoMode()) {
+      const timer = window.setTimeout(() => {
+        setLiveEvents([
+          {
+            message: 'Notificación de demostración: pago recibido y servicio reconectado.',
+            at: new Date().toISOString(),
+          },
+        ]);
+      }, 1200);
+      return () => window.clearTimeout(timer);
+    }
+
+    const socketUrl = import.meta.env.VITE_API_URL
+      ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/ws`
+      : '/ws';
+    const socket = io(socketUrl, {
+      auth: { token: accessToken },
+      ...(import.meta.env.VITE_API_URL ? { path: '/socket.io' } : {}),
+    });
     socket.on('payment.validated', (payload: { message: string; at: string }) => {
-      setLiveEvents((events) => [{ message: payload.message, at: payload.at }, ...events].slice(0, 8));
+      setLiveEvents((events) =>
+        [{ message: payload.message, at: payload.at }, ...events].slice(0, 8),
+      );
       void kpis.refetch();
       void portfolio.refetch();
     });
@@ -147,14 +179,20 @@ export default function AdminPanelPage() {
               <h2 className="text-sm font-semibold text-slate-700">Cartera y morosidad</h2>
               <div className="flex gap-2">
                 <button
-                  onClick={() => downloadCsv('/reports/collections.csv', 'recaudo.csv', accessToken)}
+                  onClick={() =>
+                    downloadCsv('/reports/collections.csv', 'recaudo.csv', accessToken)
+                  }
                   className="flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-xs hover:bg-slate-200"
                 >
                   <Download className="h-3 w-3" /> Recaudo
                 </button>
                 <button
                   onClick={() =>
-                    downloadCsv('/reports/clients-by-plan.csv', 'clientes-por-plan.csv', accessToken)
+                    downloadCsv(
+                      '/reports/clients-by-plan.csv',
+                      'clientes-por-plan.csv',
+                      accessToken,
+                    )
                   }
                   className="flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-xs hover:bg-slate-200"
                 >
@@ -180,10 +218,13 @@ export default function AdminPanelPage() {
                     {portfolio.data.byClient.slice(0, 8).map((row) => (
                       <tr key={row.clientId} className="border-b last:border-0">
                         <td className="py-1">
-                          {row.clientName} <span className="text-xs text-slate-400">{row.clientCode}</span>
+                          {row.clientName}{' '}
+                          <span className="text-xs text-slate-400">{row.clientCode}</span>
                         </td>
                         <td className="py-1 text-right">{row.overdueCount}</td>
-                        <td className="py-1 text-right text-red-600">{formatCop(row.overdueAmount)}</td>
+                        <td className="py-1 text-right text-red-600">
+                          {formatCop(row.overdueAmount)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -202,7 +243,10 @@ export default function AdminPanelPage() {
             )}
             <ul className="space-y-2 text-sm">
               {liveEvents.map((event, index) => (
-                <li key={index} className="rounded border-l-4 border-green-500 bg-green-50 px-3 py-2">
+                <li
+                  key={index}
+                  className="rounded border-l-4 border-green-500 bg-green-50 px-3 py-2"
+                >
                   {event.message}
                   <span className="ml-2 text-xs text-slate-400">
                     {new Date(event.at).toLocaleTimeString('es-CO')}

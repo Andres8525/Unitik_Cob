@@ -15,13 +15,13 @@ Ver [docs/vision.md](docs/vision.md) para el documento de visión completo (arte
 
 ## Stack tecnológico
 
-| Capa | Tecnología |
-| --- | --- |
-| Backend | Node.js 20 · NestJS 10 · TypeScript 5 strict · Prisma 5 · PostgreSQL 16 |
-| Colas | Redis 7 + BullMQ (reintentos ante conectividad intermitente) |
-| Frontend | React 18 · Vite · TailwindCSS · TanStack Query · Zustand |
-| Red | node-routeros (RouterOS API — MikroTik RouterBoard) |
-| Infra | Docker Compose · Nginx · GitHub Actions |
+| Capa     | Tecnología                                                              |
+| -------- | ----------------------------------------------------------------------- |
+| Backend  | Node.js 20 · NestJS 10 · TypeScript 5 strict · Prisma 5 · PostgreSQL 16 |
+| Colas    | Redis 7 + BullMQ (reintentos ante conectividad intermitente)            |
+| Frontend | React 18 · Vite · TailwindCSS · TanStack Query · Zustand                |
+| Red      | node-routeros (RouterOS API — MikroTik RouterBoard)                     |
+| Infra    | Docker Compose · Nginx · GitHub Actions                                 |
 
 ## Inicio rápido
 
@@ -43,6 +43,19 @@ pnpm --filter @unitik/api prisma:seed
 - Web: http://localhost:8080 (vía Docker) o `pnpm dev` → http://localhost:5173
 - API: http://localhost:3000/health
 - Swagger: http://localhost:3000/api/docs
+
+## Demo frontend en Vercel
+
+El repositorio incluye una configuración de Vercel para compilar y publicar únicamente la SPA de `apps/web`. El modo demo está activado por defecto y no requiere desplegar la API, PostgreSQL ni Redis.
+
+1. Importa el repositorio en Vercel y deja **Root Directory** como raíz del repositorio.
+2. Usa la configuración de compilación de `vercel.json` (`pnpm install --frozen-lockfile`, `pnpm --filter @unitik/web build`, salida `apps/web/dist`).
+3. No configures secretos ni variables de base de datos en este proyecto frontend.
+4. Publica el sitio y verifica una ruta directa como `/admin/clientes`; Vercel la reescribe a la SPA.
+
+En el inicio de sesión puedes entrar con los botones de demostración para administrador, técnico, cajero o cliente. Las operaciones se simulan y los cambios se guardan en el almacenamiento local de ese navegador; no se comparten entre personas ni dispositivos. El aviso **Modo demo** se mantiene visible y permite restablecer los datos. No ingreses información real.
+
+Para apagar el modo demo más adelante, configura `VITE_DEMO_MODE=false` y despliega también el backend. Si la API tiene otro dominio, configura `VITE_API_URL` con su origen público (por ejemplo, `https://api.ejemplo.com`). Antes de hacerlo deben configurarse PostgreSQL, Redis, secretos, migraciones y las integraciones reales; el frontend actual, por sí solo, no ofrece persistencia ni autenticación de producción.
 
 ## Estructura del monorepo
 
@@ -66,12 +79,12 @@ Toda operación crítica queda registrada en `audit_log` (append-only) con usuar
 
 ## Metodología (OpenUP)
 
-| Fase | Iteraciones | Estado |
-| --- | --- | --- |
-| 1. Inicio | 0 | ✅ Cerrada (2026-07-04) |
-| 2. Elaboración | 1–2 | ✅ Cerrada (2026-07-06) — arquitectura validada por prototipo |
-| 3. Construcción | 3–6 | ✅ Cerrada (2026-07-08) — sistema funcional completo |
-| 4. Transición | 7–8 | 🔄 En curso — Iteración 7 |
+| Fase            | Iteraciones | Estado                                                        |
+| --------------- | ----------- | ------------------------------------------------------------- |
+| 1. Inicio       | 0           | ✅ Cerrada (2026-07-04)                                       |
+| 2. Elaboración  | 1–2         | ✅ Cerrada (2026-07-06) — arquitectura validada por prototipo |
+| 3. Construcción | 3–6         | ✅ Cerrada (2026-07-08) — sistema funcional completo          |
+| 4. Transición   | 7–8         | 🔄 En curso — Iteración 7                                     |
 
 Artefactos: [visión](docs/vision.md) · [casos de uso](docs/use-cases.md) · [riesgos](docs/risk-list.md) · [matriz ISO/IEC 38500](docs/iso-38500-matrix.md) · [planes de iteración](docs/iteration-plans/)
 

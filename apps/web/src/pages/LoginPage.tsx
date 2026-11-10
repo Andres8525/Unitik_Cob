@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import { api, apiUrl } from '../api/http';
 import BrandLogo from '../components/BrandLogo';
 import { ROLE_DASHBOARD_PATHS, useAuthStore, type SessionUser } from '../stores/auth';
+import { DEMO_ACCOUNTS, demoSession, isDemoMode } from '../api/demo';
 
 interface LoginResponse {
   user: SessionUser;
@@ -33,8 +35,22 @@ export default function LoginPage() {
 
   const onSubmit = async (form: LoginForm) => {
     setServerError('');
+    if (isDemoMode()) {
+      try {
+        const data = await api<LoginResponse>('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify(form),
+        });
+        setSession(data.user, data.accessToken, data.refreshToken);
+        navigate(ROLE_DASHBOARD_PATHS[data.user.role], { replace: true });
+      } catch (error) {
+        setServerError(error instanceof Error ? error.message : 'No fue posible iniciar la demo.');
+      }
+      return;
+    }
+
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -58,8 +74,16 @@ export default function LoginPage() {
           : null;
       navigate(registrationPath ?? ROLE_DASHBOARD_PATHS[data.user.role], { replace: true });
     } catch {
-      setServerError('No se pudo conectar con el servidor. Verifica que el backend esté disponible.');
+      setServerError(
+        'No se pudo conectar con el servidor. Verifica que el backend esté disponible.',
+      );
     }
+  };
+
+  const enterDemo = (role: (typeof DEMO_ACCOUNTS)[number]['role']) => {
+    const data = demoSession(role);
+    setSession(data.user, data.accessToken, data.refreshToken);
+    navigate(ROLE_DASHBOARD_PATHS[role], { replace: true });
   };
 
   return (
@@ -70,6 +94,32 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          {isDemoMode() && (
+            <section
+              aria-label="Acceso a la demo"
+              className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3"
+            >
+              <p className="text-xs font-semibold text-amber-900">
+                Acceso de demostración · elige un perfil
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {DEMO_ACCOUNTS.map(({ role, name }) => (
+                  <button
+                    className="rounded-md border border-amber-300 bg-white px-2 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                    key={role}
+                    onClick={() => enterDemo(role)}
+                    type="button"
+                  >
+                    Entrar como {name}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-800">
+                Los datos son simulados y se guardan solo en este navegador. No uses información
+                real.
+              </p>
+            </section>
+          )}
           <div>
             <label htmlFor="identifier" className="mb-1 block text-sm font-medium text-slate-700">
               Correo o cédula
@@ -114,7 +164,9 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-4 text-center text-xs text-slate-500">
-          <p>Los clientes ingresan con su correo o documento y pueden crear una cuenta desde aquí.</p>
+          <p>
+            Los clientes ingresan con su correo o documento y pueden crear una cuenta desde aquí.
+          </p>
           <Link
             to="/registro"
             className="mt-3 inline-flex rounded-lg border border-unitik-200 px-4 py-2 font-semibold text-unitik-700 transition hover:bg-unitik-50"

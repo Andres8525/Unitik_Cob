@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { demoStorage } from './demoStorage';
 
 export type PlanTechnology = 'FIBER' | 'RADIO';
 export type PlanStatus = 'ACTIVE' | 'INACTIVE';
@@ -52,23 +54,33 @@ const initialPlans: ServicePlan[] = [
   },
 ];
 
-export const usePlanesStore = create<PlanesState>((set) => ({
-  planes: initialPlans,
-  agregarPlan: (plan) =>
-    set((state) => ({
-      planes: [
-        ...state.planes,
-        { ...plan, id: `plan-${Date.now()}-${state.planes.length}`, status: 'ACTIVE' },
-      ],
-    })),
-  editarPlan: (id, plan) =>
-    set((state) => ({
-      planes: state.planes.map((current) =>
-        current.id === id ? { ...current, ...plan } : current,
-      ),
-    })),
-  cambiarEstadoPlan: (id, status) =>
-    set((state) => ({
-      planes: state.planes.map((current) => (current.id === id ? { ...current, status } : current)),
-    })),
-}));
+export const usePlanesStore = create<PlanesState>()(
+  persist(
+    (set) => ({
+      planes: initialPlans,
+      agregarPlan: (plan) =>
+        set((state) => ({
+          planes: [
+            ...state.planes,
+            { ...plan, id: `plan-${Date.now()}-${state.planes.length}`, status: 'ACTIVE' },
+          ],
+        })),
+      editarPlan: (id, plan) =>
+        set((state) => ({
+          planes: state.planes.map((current) =>
+            current.id === id ? { ...current, ...plan } : current,
+          ),
+        })),
+      cambiarEstadoPlan: (id, status) =>
+        set((state) => ({
+          planes: state.planes.map((current) =>
+            current.id === id ? { ...current, status } : current,
+          ),
+        })),
+    }),
+    {
+      name: 'unitik-demo-plans',
+      storage: demoStorage,
+    },
+  ),
+);

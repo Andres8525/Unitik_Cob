@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { demoStorage } from './demoStorage';
 
 export type InvoiceStatus = 'DRAFT' | 'PENDING' | 'ISSUED' | 'PAID' | 'CANCELLED';
 
@@ -89,50 +91,59 @@ function downloadCsv(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export const useFacturacionStore = create<FacturacionState>((set, get) => ({
-  metrics: {
-    activeClients: 1284,
-    suspendedClients: 37,
-    collectedToday: 2450000,
-    overduePortfolio: 8735000,
-  },
-  facturas: initialInvoices,
+export const useFacturacionStore = create<FacturacionState>()(
+  persist(
+    (set, get) => ({
+      metrics: {
+        activeClients: 1284,
+        suspendedClients: 37,
+        collectedToday: 2450000,
+        overduePortfolio: 8735000,
+      },
+      facturas: initialInvoices,
 
-  editarConceptoFactura: (id, concepts) =>
-    set((state) => ({
-      facturas: state.facturas.map((invoice) =>
-        invoice.id === id && ['DRAFT', 'PENDING'].includes(invoice.status)
-          ? { ...invoice, concepts }
-          : invoice,
-      ),
-    })),
+      editarConceptoFactura: (id, concepts) =>
+        set((state) => ({
+          facturas: state.facturas.map((invoice) =>
+            invoice.id === id && ['DRAFT', 'PENDING'].includes(invoice.status)
+              ? { ...invoice, concepts }
+              : invoice,
+          ),
+        })),
 
-  anularFactura: (id, role) => {
-    // Audit rule: only an ADMIN can cancel an issued invoice; the API must enforce this too.
-    if (role !== 'ADMIN') return false;
-    const invoice = get().facturas.find((item) => item.id === id);
-    if (!invoice || invoice.status !== 'ISSUED') return false;
-    set((state) => ({
-      facturas: state.facturas.map((item) =>
-        item.id === id ? { ...item, status: 'CANCELLED' } : item,
-      ),
-    }));
-    return true;
-  },
+      anularFactura: (id, role) => {
+        if (role !== 'ADMIN') return false;
+        const invoice = get().facturas.find((item) => item.id === id);
+        if (!invoice || invoice.status !== 'ISSUED') return false;
+        set((state) => ({
+          facturas: state.facturas.map((item) =>
+            item.id === id ? { ...item, status: 'CANCELLED' } : item,
+          ),
+        }));
+        return true;
+      },
 
-  exportarFacturasMes: () => {
-    const rows = [
-      ['Número', 'Cliente', 'Emisión', 'Vencimiento', 'Estado', 'Total COP'],
-      ...get().facturas.map((invoice) => [
-        invoice.number,
-        invoice.clientName,
-        invoice.issueDate,
-        invoice.dueDate,
-        invoice.status,
-        String(invoiceTotal(invoice)),
-      ]),
-    ];
-    const csv = rows.map((row) => row.map((field) => `"${field.replaceAll('"', '""')}"`).join(',')).join('\r\n');
-    downloadCsv(`\uFEFF${csv}`, `facturas-${new Date().toISOString().slice(0, 7)}.csv`);
-  },
-}));
+      exportarFacturasMes: () => {
+        const rows = [
+          ['Número', 'Cliente', 'Emisión', 'Vencimiento', 'Estado', 'Total COP'],
+          ...get().facturas.map((invoice) => [
+            invoice.number,
+            invoice.clientName,
+            invoice.issueDate,
+            invoice.dueDate,
+            invoice.status,
+            String(invoiceTotal(invoice)),
+          ]),
+        ];
+        const csv = rows
+          .map((row) => row.map((field) => `"${field.replaceAll('"', '""')}"`).join(','))
+          .join('\r\n');
+        downloadCsv(`\uFEFF${csv}`, `facturas-${new Date().toISOString().slice(0, 7)}.csv`);
+      },
+    }),
+    {
+      name: 'unitik-demo-billing',
+      storage: demoStorage,
+    },
+  ),
+);
