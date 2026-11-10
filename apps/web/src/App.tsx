@@ -4,6 +4,9 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminFacturacionPage from './pages/admin/AdminFacturacionPage';
+import AdminClientesPage from './pages/admin/AdminClientesPage';
+import AdminOperacionPage from './pages/admin/AdminOperacionPage';
+import AdminInformesPage from './pages/admin/AdminInformesPage';
 import ListaPlanes from './pages/admin/ListaPlanes';
 import ConfiguracionPoliticas from './pages/admin/ConfiguracionPoliticas';
 import NuevoClientePage from './pages/admin/NuevoClientePage';
@@ -24,7 +27,10 @@ export default function App() {
 
       <Route element={<ProtectedRoute roles={['ADMIN']} />}>
         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+        <Route path="/admin/clientes" element={<AdminClientesPage />} />
         <Route path="/admin/facturacion" element={<AdminFacturacionPage />} />
+        <Route path="/admin/operacion" element={<AdminOperacionPage />} />
+        <Route path="/admin/informes" element={<AdminInformesPage />} />
         <Route path="/admin/planes" element={<ListaPlanes />} />
         <Route path="/admin/politicas" element={<ConfiguracionPoliticas />} />
       </Route>
