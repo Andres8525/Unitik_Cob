@@ -71,7 +71,57 @@ interface DemoPromise {
   invoice: { invoiceNumber: string; dueDate: string; status: string };
 }
 
+interface DemoPlan {
+  id: string;
+  name: string;
+  description: string;
+  serviceType: 'FIBER' | 'RADIO';
+  speedMbps: number;
+  monthlyPrice: string;
+  reusePercent: number | null;
+  includesTv: boolean;
+  isActive: boolean;
+}
+
+const DEFAULT_DEMO_PLANS: DemoPlan[] = [
+  {
+    id: 'demo-plan-fiber-20',
+    name: 'Fibra 20 Megas',
+    description: 'Internet por fibra óptica 20 Mbps',
+    serviceType: 'FIBER',
+    speedMbps: 20,
+    monthlyPrice: '50000',
+    reusePercent: 25,
+    includesTv: false,
+    isActive: true,
+  },
+  {
+    id: 'demo-plan-fiber-100',
+    name: 'Fibra 100 Megas',
+    description: 'Internet por fibra óptica 100 Mbps',
+    serviceType: 'FIBER',
+    speedMbps: 100,
+    monthlyPrice: '100000',
+    reusePercent: 50,
+    includesTv: false,
+    isActive: true,
+  },
+  {
+    id: 'demo-plan-radio-12',
+    name: 'Radio 12 Megas',
+    description: 'Internet por radio enlace 12 Mbps',
+    serviceType: 'RADIO',
+    speedMbps: 12,
+    monthlyPrice: '50000',
+    reusePercent: 16.67,
+    includesTv: false,
+    isActive: true,
+  },
+];
+
 interface DemoState {
+  /** Optional so browsers holding an older demo snapshot keep working. */
+  plans?: DemoPlan[];
   clients: DemoClient[];
   invoices: DemoInvoice[];
   tickets: DemoTicket[];
@@ -506,6 +556,35 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     state.clients.unshift(client);
     writeState(state);
     result = clientProfile(client);
+  } else if (route === '/plans' && method === 'GET') {
+    const plans = (state.plans ??= DEFAULT_DEMO_PLANS.map((plan) => ({ ...plan })));
+    result = url.searchParams.get('onlyActive') === 'true'
+      ? plans.filter((plan) => plan.isActive)
+      : plans;
+  } else if (route === '/plans' && method === 'POST') {
+    const plans = (state.plans ??= DEFAULT_DEMO_PLANS.map((plan) => ({ ...plan })));
+    const plan: DemoPlan = {
+      id: `demo-plan-${crypto.randomUUID()}`,
+      name: String(body.name ?? '').trim(),
+      description: String(body.description ?? '').trim(),
+      serviceType: body.serviceType === 'RADIO' ? 'RADIO' : 'FIBER',
+      speedMbps: Number(body.speedMbps),
+      monthlyPrice: String(body.monthlyPrice),
+      reusePercent: typeof body.reusePercent === 'number' ? body.reusePercent : null,
+      includesTv: body.includesTv === true,
+      isActive: true,
+    };
+    if (!plan.name) throw new Error('El nombre es obligatorio');
+    plans.push(plan);
+    writeState(state);
+    result = plan;
+  } else if (/^\/plans\/[^/]+$/.test(route) && method === 'PATCH') {
+    const plans = (state.plans ??= DEFAULT_DEMO_PLANS.map((plan) => ({ ...plan })));
+    const plan = plans.find((item) => item.id === route.split('/').pop());
+    if (!plan) throw new Error('No se encontró el plan de demostración.');
+    Object.assign(plan, body, body.monthlyPrice === undefined ? {} : { monthlyPrice: String(body.monthlyPrice) });
+    writeState(state);
+    result = plan;
   } else if (route === '/subscriptions/my' && method === 'GET') {
     result = {
       status: 'ACTIVE',

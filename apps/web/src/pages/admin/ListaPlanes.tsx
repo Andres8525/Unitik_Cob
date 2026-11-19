@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { LoaderCircle, Plus } from 'lucide-react';
 import { formatCop } from '@unitik/shared-types';
 import DashboardShell from '../../components/DashboardShell';
 import { ADMIN_NAV_ITEMS } from '../../components/navigation';
@@ -15,13 +15,20 @@ export default function ListaPlanes() {
   const agregarPlan = usePlanesStore((state) => state.agregarPlan);
   const editarPlan = usePlanesStore((state) => state.editarPlan);
   const cambiarEstadoPlan = usePlanesStore((state) => state.cambiarEstadoPlan);
+  const cargarPlanes = usePlanesStore((state) => state.cargarPlanes);
+  const isLoading = usePlanesStore((state) => state.isLoading);
+  const error = usePlanesStore((state) => state.error);
   const [formPlan, setFormPlan] = useState<ServicePlan | null | undefined>(undefined);
 
-  const savePlan = (planData: NewServicePlan) => {
+  useEffect(() => {
+    void cargarPlanes();
+  }, [cargarPlanes]);
+
+  const savePlan = async (planData: NewServicePlan) => {
     if (formPlan) {
-      editarPlan(formPlan.id, planData);
+      await editarPlan(formPlan.id, planData);
     } else {
-      agregarPlan(planData);
+      await agregarPlan(planData);
     }
     setFormPlan(undefined);
   };
@@ -48,6 +55,12 @@ export default function ListaPlanes() {
           </button>
         </header>
 
+        {error && (
+          <p role="alert" className="border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800">
+            {error}
+          </p>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -68,7 +81,7 @@ export default function ListaPlanes() {
                   <td className="px-5 py-4">{plan.speedMbps} Mbps</td>
                   <td className="px-5 py-4">{plan.technology === 'FIBER' ? 'Fibra Óptica' : 'Radio Enlace'}</td>
                   <td className="px-5 py-4">{formatCop(plan.monthlyPrice)}</td>
-                  <td className="px-5 py-4">{plan.reuseRatio}</td>
+                  <td className="px-5 py-4">{plan.reuseRatio || '—'}</td>
                   <td className="px-5 py-4">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -89,20 +102,30 @@ export default function ListaPlanes() {
                       >
                         Editar
                       </button>
-                      {plan.status === 'ACTIVE' && (
-                        <button
-                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                          onClick={() => cambiarEstadoPlan(plan.id, 'INACTIVE')}
-                          type="button"
-                        >
-                          Inactivar
-                        </button>
-                      )}
+                      <button
+                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                        onClick={() =>
+                          void cambiarEstadoPlan(plan.id, plan.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE')
+                        }
+                        type="button"
+                      >
+                        {plan.status === 'ACTIVE' ? 'Inactivar' : 'Activar'}
+                      </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {planes.length === 0 && (
+              {isLoading && planes.length === 0 && (
+                <tr>
+                  <td className="px-5 py-10 text-center text-slate-500" colSpan={7}>
+                    <span className="inline-flex items-center gap-2">
+                      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      Cargando planes…
+                    </span>
+                  </td>
+                </tr>
+              )}
+              {!isLoading && planes.length === 0 && (
                 <tr>
                   <td className="px-5 py-10 text-center text-slate-500" colSpan={7}>
                     Aún no hay planes registrados.

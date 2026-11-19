@@ -1,42 +1,55 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { usePlanesStore, type ServicePlan } from './planes';
+import { describe, expect, it } from 'vitest';
+import { percentToRatio, ratioToPercent, toPlanPayload, toServicePlan } from './planes';
 
-const initialPlans: ServicePlan[] = usePlanesStore.getState().planes.map((plan) => ({ ...plan }));
-
-describe('planes store', () => {
-  beforeEach(() => {
-    usePlanesStore.setState({ planes: initialPlans.map((plan) => ({ ...plan })) });
+describe('plan API mapping', () => {
+  it('converts reuse ratios to backend percentages and back', () => {
+    expect(ratioToPercent('1:4')).toBe(25);
+    expect(ratioToPercent('1:6')).toBe(16.67);
+    expect(ratioToPercent('4')).toBeUndefined();
+    expect(percentToRatio(25)).toBe('1:4');
+    expect(percentToRatio(16.67)).toBe('1:6');
+    expect(percentToRatio(null)).toBe('');
   });
 
-  it('creates and edits plans', () => {
-    const newPlan = {
-      name: 'Fibra 50 Megas',
-      speedMbps: 50,
-      technology: 'FIBER' as const,
-      monthlyPrice: 85000,
-      reuseRatio: '1:4',
-    };
-
-    usePlanesStore.getState().agregarPlan(newPlan);
-    const created = usePlanesStore.getState().planes.find((plan) => plan.name === newPlan.name);
-
-    expect(created).toMatchObject({ ...newPlan, status: 'ACTIVE' });
-    expect(created?.id).toBeTruthy();
-
-    usePlanesStore.getState().editarPlan(created!.id, { ...newPlan, monthlyPrice: 90000 });
+  it('maps an API plan (Decimal as string) to the UI model', () => {
     expect(
-      usePlanesStore.getState().planes.find((plan) => plan.id === created!.id)?.monthlyPrice,
-    ).toBe(90000);
+      toServicePlan({
+        id: 'p1',
+        name: 'Fibra 100 Megas',
+        description: 'Internet por fibra óptica 100 Mbps',
+        serviceType: 'FIBER',
+        speedMbps: 100,
+        monthlyPrice: '100000.00',
+        reusePercent: 50,
+        isActive: false,
+      }),
+    ).toEqual({
+      id: 'p1',
+      name: 'Fibra 100 Megas',
+      speedMbps: 100,
+      technology: 'FIBER',
+      monthlyPrice: 100000,
+      reuseRatio: '1:2',
+      status: 'INACTIVE',
+    });
   });
 
-  it('inactivates a plan without removing it from the catalog', () => {
-    const planToDeactivate = initialPlans[0];
-
-    usePlanesStore.getState().cambiarEstadoPlan(planToDeactivate.id, 'INACTIVE');
-
-    expect(usePlanesStore.getState().planes).toContainEqual({
-      ...planToDeactivate,
-      status: 'INACTIVE',
+  it('builds a CreatePlanDto-compatible payload', () => {
+    expect(
+      toPlanPayload({
+        name: '  Radio 12 Megas ',
+        speedMbps: 12,
+        technology: 'RADIO',
+        monthlyPrice: 50000,
+        reuseRatio: '1:4',
+      }),
+    ).toEqual({
+      name: 'Radio 12 Megas',
+      description: 'Internet por radio enlace 12 Mbps',
+      serviceType: 'RADIO',
+      speedMbps: 12,
+      monthlyPrice: 50000,
+      reusePercent: 25,
     });
   });
 });

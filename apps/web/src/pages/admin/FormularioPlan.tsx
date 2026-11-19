@@ -19,7 +19,7 @@ type PlanFormValues = z.infer<typeof planSchema>;
 
 interface FormularioPlanProps {
   plan?: ServicePlan;
-  onSave: (plan: NewServicePlan) => void;
+  onSave: (plan: NewServicePlan) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -36,7 +36,7 @@ export default function FormularioPlan({ plan, onSave, onCancel }: FormularioPla
       speedMbps: plan?.speedMbps ?? 20,
       technology: plan?.technology ?? 'FIBER',
       monthlyPrice: plan?.monthlyPrice ?? 50000,
-      reuseRatio: plan?.reuseRatio ?? '1:4',
+      reuseRatio: plan?.reuseRatio || '1:4',
     },
   });
 
@@ -46,12 +46,13 @@ export default function FormularioPlan({ plan, onSave, onCancel }: FormularioPla
       speedMbps: plan?.speedMbps ?? 20,
       technology: plan?.technology ?? 'FIBER',
       monthlyPrice: plan?.monthlyPrice ?? 50000,
-      reuseRatio: plan?.reuseRatio ?? '1:4',
+      reuseRatio: plan?.reuseRatio || '1:4',
     });
   }, [plan, reset]);
 
-  const onSubmit = (values: PlanFormValues) => {
-    onSave(values);
+  const onSubmit = async (values: PlanFormValues) => {
+    // Errors are surfaced by the plans store; keep the form open so the user can retry.
+    await Promise.resolve(onSave(values)).catch(() => undefined);
   };
 
   const inputClassName =
