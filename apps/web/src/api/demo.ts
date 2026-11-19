@@ -762,6 +762,20 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     });
     writeState(state);
     result = { success: true };
+  } else if (route === '/payments' && method === 'POST') {
+    const invoice = state.invoices.find((item) => item.id === body.invoiceId);
+    if (!invoice || invoice.clientId !== me.id) throw new Error('Selecciona una factura demo vigente.');
+    if (invoice.status === 'PAID') throw new Error('La factura ya aparece pagada en la demo.');
+    // Digital reports stay pending until staff validates them (the invoice is not settled).
+    result = {
+      id: `demo-payment-${crypto.randomUUID()}`,
+      invoiceId: invoice.id,
+      amount: Number(body.amount ?? invoice.total),
+      paymentMethod: body.paymentMethod,
+      reference: body.reference ?? null,
+      status: 'PENDING_VALIDATION',
+      createdAt: now,
+    };
   } else if (route === '/payments/cash' && method === 'POST') {
     result = registerPayment(state, String(body.invoiceId ?? ''));
   } else if (route === '/cashier/payments' && method === 'POST') {

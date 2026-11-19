@@ -57,6 +57,31 @@ En el inicio de sesión puedes entrar con los botones de demostración para admi
 
 Para apagar el modo demo más adelante, configura `VITE_DEMO_MODE=false` y despliega también el backend. Si la API tiene otro dominio, configura `VITE_API_URL` con su origen público (por ejemplo, `https://api.ejemplo.com`). Antes de hacerlo deben configurarse PostgreSQL, Redis, secretos, migraciones y las integraciones reales; el frontend actual, por sí solo, no ofrece persistencia ni autenticación de producción.
 
+## Integración frontend ↔ backend
+
+El frontend llama siempre a `/api/*` mediante `apps/web/src/api/http.ts` (JWT + refresh automático ante 401). En desarrollo Vite redirige `/api` y `/socket.io` a `http://localhost:3000`; en Docker lo hace Nginx. Con `VITE_DEMO_MODE=false` se usa la API real; con el modo demo, `api/demo.ts` atiende las mismas rutas en el navegador.
+
+Contratos validados por rol (ruta del frontend → endpoint NestJS, con el rol que exige `@Roles`):
+
+| Rol     | Vista                     | Endpoints consumidos                                                                           |
+| ------- | ------------------------- | ---------------------------------------------------------------------------------------------- |
+| ADMIN   | `/admin/dashboard`        | `GET /dashboard/kpis`                                                                          |
+| ADMIN   | `/admin/planes`           | `GET/POST /plans`, `PATCH /plans/:id`                                                          |
+| ADMIN   | `/admin/clientes`         | `GET /clients`                                                                                 |
+| ADMIN   | `/admin/politicas`        | `GET/PATCH /system-config/policies`, `GET /payment-promises/active`, `POST /payment-promises`  |
+| ADMIN   | `/admin/operacion`        | `GET /network/devices`, `POST /network/devices/:id/ping`, `GET /installations`, `GET /tickets` |
+| ADMIN   | `/admin/informes`         | `GET /reports/collections.csv`, `GET /reports/clients-by-plan.csv`                             |
+| TÉCNICO | `/tecnico/dashboard`      | `GET /tickets`, `PATCH /tickets/:id`, `GET /installations`, `GET /network/devices`             |
+| TÉCNICO | `/tecnico/instalaciones`  | `GET /clients`, `GET /network/devices`, `POST /installations`                                  |
+| CAJERO  | `/cajero/dashboard`       | `GET /cashier/daily-close`                                                                     |
+| CAJERO  | `/cajero/pagos`           | `GET /clients?search=`, `GET /invoices?clientId=`, `POST /payments/cash`                       |
+| CLIENTE | `/cliente/portal`         | `GET /clients/me`, `GET /subscriptions/my`, `GET /invoices/my`, `POST /payments`               |
+| CLIENTE | `/cliente/notificaciones` | `GET /notifications/my`, `PATCH /notifications/:id/read`                                       |
+
+El comprobante adjunto por el cliente se conserva solo en su dispositivo: la API aún no tiene un endpoint de carga de archivos (`proofUrl` espera una URL).
+
+Los tipos de respuesta compartidos (`DashboardKpis`, `DailyClose`) viven en `packages/shared-types`. Todos los dashboards de rol muestran el logo oficial (`apps/web/public/logo-unitik.png`) y la pantalla de inicio de sesión usa un fondo animado de red de telecomunicaciones (`TelecomBackground`), que queda estático si el sistema operativo solicita reducir el movimiento.
+
 ## Estructura del monorepo
 
 ```

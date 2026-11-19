@@ -28,6 +28,7 @@ const acceptedMimeTypes = ACCEPTED_PAYMENT_RECEIPT_TYPES.join(',');
 export default function FormularioReportePago({ invoices }: FormularioReportePagoProps) {
   const enviarComprobantePago = usePagosStore((state) => state.enviarComprobantePago);
   const [radicado, setRadicado] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [draggingFile, setDraggingFile] = useState(false);
   const fileElementRef = useRef<HTMLInputElement | null>(null);
   const {
@@ -44,8 +45,20 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
   const receipt = watch('file');
 
   const submit = async (values: ReportePagoFormValues) => {
-    const newRadicado = await enviarComprobantePago(values);
-    setRadicado(newRadicado);
+    setSubmitError(null);
+    const invoice = invoices.find((option) => option.id === values.invoiceId);
+    if (!invoice) {
+      setSubmitError('Selecciona una factura pendiente.');
+      return;
+    }
+    try {
+      const newRadicado = await enviarComprobantePago({ ...values, amount: Number(invoice.total) });
+      setRadicado(newRadicado);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : 'No se pudo enviar el reporte. Intenta de nuevo.',
+      );
+    }
   };
 
   if (radicado) {
@@ -198,6 +211,12 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
           </div>
         )}
       />
+
+      {submitError && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+          {submitError}
+        </p>
+      )}
 
       <button
         className="min-h-12 w-full rounded-xl bg-unitik-600 px-4 text-base font-bold text-white transition hover:bg-unitik-700 focus:outline-none focus:ring-4 focus:ring-unitik-100 disabled:cursor-not-allowed disabled:opacity-50"
