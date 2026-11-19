@@ -1,11 +1,14 @@
 import {
   Banknote,
   BarChart3,
+  ClipboardCheck,
   CreditCard,
   FileText,
+  MapPinned,
   Package,
   Search,
   Settings,
+  UserPlus,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -28,4 +31,15 @@ export const ADMIN_NAV_ITEMS: DashboardNavItem[] = [
 export const CASHIER_NAV_ITEMS: DashboardNavItem[] = [
   { label: 'Resumen', to: '/cajero/dashboard', icon: <Banknote className={iconClassName} /> },
   { label: 'Registrar pago', to: '/cajero/pagos', icon: <Search className={iconClassName} /> },
+];
+
+/** Technician sidebar: summary, installation acta and client onboarding. */
+export const TECHNICIAN_NAV_ITEMS: DashboardNavItem[] = [
+  { label: 'Resumen', to: '/tecnico/dashboard', icon: <ClipboardCheck className={iconClassName} /> },
+  {
+    label: 'Acta de instalación',
+    to: '/tecnico/instalaciones',
+    icon: <MapPinned className={iconClassName} />,
+  },
+  { label: 'Registrar cliente', to: '/clientes/nuevo', icon: <UserPlus className={iconClassName} /> },
 ];

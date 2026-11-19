@@ -1,14 +1,6 @@
-import { ClipboardCheck, FileStack, MapPinned, Radio, Ticket } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/tecnico/dashboard', icon: <ClipboardCheck className="h-4 w-4" /> },
-  { label: 'Instalaciones', to: '/tecnico/instalaciones', icon: <MapPinned className="h-4 w-4" /> },
-  { label: 'Clientes', to: '/tecnico/clientes', icon: <FileStack className="h-4 w-4" /> },
-  { label: 'Tickets', to: '/tecnico/tickets', icon: <Ticket className="h-4 w-4" /> },
-  { label: 'Red', to: '/tecnico/red', icon: <Radio className="h-4 w-4" /> },
-];
+import DashboardShell from '../../components/DashboardShell';
+import { TECHNICIAN_NAV_ITEMS } from '../../components/navigation';
 
 const cards = [
   { label: 'Instalaciones hoy', value: '08', detail: '2 pendientes por revisión' },
@@ -19,7 +11,7 @@ const cards = [
 
 export default function TecnicoDashboardPage() {
   return (
-    <DashboardShell title="Técnico" subtitle="Operación de campo y soporte" navItems={navItems}>
+    <DashboardShell title="Técnico" subtitle="Operación de campo y soporte" navItems={TECHNICIAN_NAV_ITEMS}>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <div key={card.label} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">

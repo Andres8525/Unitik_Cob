@@ -3,15 +3,10 @@ import { AlertCircle, CheckCircle2, Info, MapPinned, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
+import DashboardShell from '../../components/DashboardShell';
+import { TECHNICIAN_NAV_ITEMS } from '../../components/navigation';
 import { actaInstalacionSchema, type ActaInstalacionFormValues } from '../../schemas/actaInstalacion';
 import { useTecnicoStore } from '../../stores/tecnico';
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/tecnico/dashboard' },
-  { label: 'Acta de instalación', to: '/tecnico/instalaciones' },
-  { label: 'Registrar cliente', to: '/clientes/nuevo' },
-];
 
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-unitik-500 focus:ring-2 focus:ring-unitik-100 disabled:bg-slate-100';
@@ -62,7 +57,7 @@ export default function ActaInstalacion() {
   };
 
   return (
-    <DashboardShell title="Técnico" subtitle="Registro de instalación y equipo de red" navItems={navItems}>
+    <DashboardShell title="Técnico" subtitle="Registro de instalación y equipo de red" navItems={TECHNICIAN_NAV_ITEMS}>
       <section className="mx-auto w-full max-w-3xl rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8">
         <header className="mb-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-unitik-50 text-unitik-700">
