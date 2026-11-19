@@ -2,7 +2,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, Banknote, CheckCircle2, LoaderCircle, Search, UserRound } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
+import DashboardShell from '../../components/DashboardShell';
+import { CASHIER_NAV_ITEMS } from '../../components/navigation';
 import {
   useCajeroStore,
   type ClienteCajero,
@@ -14,11 +15,6 @@ const searchSchema = z.object({
 });
 
 type SearchValues = z.infer<typeof searchSchema>;
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/cajero/dashboard', icon: <Banknote className="h-4 w-4" /> },
-  { label: 'Registrar pago', to: '/cajero/pagos', icon: <Search className="h-4 w-4" /> },
-];
 
 const money = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -96,7 +92,7 @@ export default function PanelCajero() {
   };
 
   return (
-    <DashboardShell title="Cajero" subtitle="Búsqueda de cliente y recepción de pagos en efectivo" navItems={navItems}>
+    <DashboardShell title="Cajero" subtitle="Búsqueda de cliente y recepción de pagos en efectivo" navItems={CASHIER_NAV_ITEMS}>
       <section className="mx-auto w-full max-w-4xl space-y-5">
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-7">
           <div className="mb-5">

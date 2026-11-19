@@ -1,13 +1,7 @@
-import { Banknote, ClipboardList, Search, WalletCards } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/cajero/dashboard', icon: <Banknote className="h-4 w-4" /> },
-  { label: 'Buscar cliente', to: '/cajero/buscar', icon: <Search className="h-4 w-4" /> },
-  { label: 'Recaudos', to: '/cajero/recibos', icon: <WalletCards className="h-4 w-4" /> },
-  { label: 'Agenda', to: '/cajero/agenda', icon: <ClipboardList className="h-4 w-4" /> },
-];
+import DashboardShell from '../../components/DashboardShell';
+import { CASHIER_NAV_ITEMS } from '../../components/navigation';
 
 const cards = [
   { label: 'Recaudo hoy', value: '$ 4.250.000', detail: '42 pagos procesados' },
@@ -18,7 +12,7 @@ const cards = [
 
 export default function CajeroDashboardPage() {
   return (
-    <DashboardShell title="Cajero" subtitle="Cobranza y validación de pagos" navItems={navItems}>
+    <DashboardShell title="Cajero" subtitle="Cobranza y validación de pagos" navItems={CASHIER_NAV_ITEMS}>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <div key={card.label} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">

@@ -1,8 +1,10 @@
 import {
+  Banknote,
   BarChart3,
   CreditCard,
   FileText,
   Package,
+  Search,
   Settings,
   Users,
   Wrench,
@@ -20,4 +22,10 @@ export const ADMIN_NAV_ITEMS: DashboardNavItem[] = [
   { label: 'Facturación', to: '/admin/facturacion', icon: <CreditCard className={iconClassName} /> },
   { label: 'Operación', to: '/admin/operacion', icon: <Wrench className={iconClassName} /> },
   { label: 'Informes', to: '/admin/informes', icon: <FileText className={iconClassName} /> },
+];
+
+/** Cashier sidebar: summary plus the cash collection panel. */
+export const CASHIER_NAV_ITEMS: DashboardNavItem[] = [
+  { label: 'Resumen', to: '/cajero/dashboard', icon: <Banknote className={iconClassName} /> },
+  { label: 'Registrar pago', to: '/cajero/pagos', icon: <Search className={iconClassName} /> },
 ];
