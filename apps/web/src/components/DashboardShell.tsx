@@ -1,6 +1,7 @@
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
+import BrandLogo from './BrandLogo';
 
 export interface DashboardNavItem {
   label: string;
@@ -22,12 +23,12 @@ export default function DashboardShell({ title, subtitle, navItems, children }: 
   return (
     <div className="flex min-h-screen bg-slate-100">
       <aside className="w-72 bg-slate-900 p-5 text-slate-100">
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-unitik-500/20 text-unitik-300">
-            <ShieldCheck className="h-5 w-5" />
+        <div className="mb-8 space-y-4">
+          <div className="flex justify-center rounded-xl bg-white p-2 shadow-sm ring-1 ring-white/10">
+            <BrandLogo className="h-28 w-auto" alt="UNITIK Internet Sin Límite" />
           </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Unitik</p>
+          <div className="text-center">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Panel</p>
             <h1 className="text-lg font-bold">{title}</h1>
           </div>
         </div>
