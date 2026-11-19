@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, CalendarClock, CheckCircle2, Circle, CreditCard, ExternalLink, MessageCircle, ReceiptText, Wifi } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import BrandLogo from '../../components/BrandLogo';
 import { useNotificacionesStore, type Notificacion } from '../../stores/notificaciones';
 
 const notificationStyles = {
@@ -155,6 +156,15 @@ export default function HistorialNotificaciones() {
     <main className="min-h-screen bg-slate-100 px-3 py-4 sm:px-5 sm:py-8">
       <div className="mx-auto max-w-md space-y-4">
         <header className="rounded-2xl bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <BrandLogo className="h-12 w-auto" alt="UNITIK Internet Sin Límite" />
+            <Link
+              to="/cliente/portal"
+              className="rounded-lg px-3 py-2 text-xs font-semibold text-unitik-700 hover:bg-unitik-50"
+            >
+              Volver al portal
+            </Link>
+          </div>
           <div className="flex items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-unitik-50 text-unitik-700">
               <Bell className="h-5 w-5" />
