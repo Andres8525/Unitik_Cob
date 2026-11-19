@@ -35,6 +35,19 @@ export type MetricType =
 
 export type ExperimentPhase = 'BASELINE' | 'POST_INTERVENTION';
 
+/** Response of GET /api/dashboard/kpis (mirrors apps/api reports/dashboard.controller.ts). */
+export interface DashboardKpis {
+  activeClients: number;
+  suspendedClients: number;
+  /** COP validated during the current month. */
+  monthRevenue: number;
+  overdueClients: number;
+  overdueAmount: number;
+  openTickets: number;
+  devicesOnline: number;
+  devicesTotal: number;
+}
+
 /** Formats an amount as Colombian pesos: $ 1.234.567 (no decimals). */
 export function formatCop(amount: number): string {
   return `$ ${Math.round(amount).toLocaleString('es-CO')}`;

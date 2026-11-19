@@ -20,15 +20,7 @@ export interface DashboardInvoice {
   concepts: InvoiceConcept[];
 }
 
-interface BillingMetrics {
-  activeClients: number;
-  suspendedClients: number;
-  collectedToday: number;
-  overduePortfolio: number;
-}
-
 interface FacturacionState {
-  metrics: BillingMetrics;
   facturas: DashboardInvoice[];
   editarConceptoFactura: (id: string, concepts: InvoiceConcept[]) => void;
   anularFactura: (id: string, role: string | undefined) => boolean;
@@ -94,12 +86,6 @@ function downloadCsv(content: string, filename: string): void {
 export const useFacturacionStore = create<FacturacionState>()(
   persist(
     (set, get) => ({
-      metrics: {
-        activeClients: 1284,
-        suspendedClients: 37,
-        collectedToday: 2450000,
-        overduePortfolio: 8735000,
-      },
       facturas: initialInvoices,
 
       editarConceptoFactura: (id, concepts) =>
