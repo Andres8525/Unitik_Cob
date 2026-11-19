@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { api, apiUrl } from '../api/http';
 import BrandLogo from '../components/BrandLogo';
+import TelecomBackground from '../components/TelecomBackground';
 import { ROLE_DASHBOARD_PATHS, useAuthStore, type SessionUser } from '../stores/auth';
 import { DEMO_ACCOUNTS, demoSession, isDemoMode } from '../api/demo';
 
@@ -87,94 +88,112 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-      <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-lg">
-        <div className="mb-6 flex justify-center">
-          <BrandLogo className="h-40 w-auto" />
-        </div>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 p-4 sm:p-6">
+      <TelecomBackground />
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          {isDemoMode() && (
-            <section
-              aria-label="Acceso a la demo"
-              className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3"
-            >
-              <p className="text-xs font-semibold text-amber-900">
-                Acceso de demostración · elige un perfil
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {DEMO_ACCOUNTS.map(({ role, name }) => (
-                  <button
-                    className="rounded-md border border-amber-300 bg-white px-2 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                    key={role}
-                    onClick={() => enterDemo(role)}
-                    type="button"
-                  >
-                    Entrar como {name}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] leading-relaxed text-amber-800">
-                Los datos son simulados y se guardan solo en este navegador. No uses información
-                real.
-              </p>
-            </section>
-          )}
-          <div>
-            <label htmlFor="identifier" className="mb-1 block text-sm font-medium text-slate-700">
-              Correo o cédula
-            </label>
-            <input
-              id="identifier"
-              type="text"
-              autoComplete="username"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-unitik-500 focus:outline-none"
-              {...register('identifier')}
-            />
-            {errors.identifier && (
-              <p className="mt-1 text-xs text-red-600">{errors.identifier.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-unitik-500 focus:outline-none"
-              {...register('password')}
-            />
-            {errors.password && (
-              <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
-            )}
-          </div>
-
-          {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-lg bg-unitik-600 py-2 text-sm font-semibold text-white transition hover:bg-unitik-700 disabled:opacity-50"
-          >
-            {isSubmitting ? 'Ingresando…' : 'Ingresar'}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center text-xs text-slate-500">
-          <p>
-            Los clientes ingresan con su correo o documento y pueden crear una cuenta desde aquí.
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="mb-5 text-center text-white">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">
+            Fibra óptica · Radio enlace
           </p>
-          <Link
-            to="/registro"
-            className="mt-3 inline-flex rounded-lg border border-unitik-200 px-4 py-2 font-semibold text-unitik-700 transition hover:bg-unitik-50"
-          >
-            Crear cuenta de cliente
-          </Link>
-          <p className="mt-1">Regístrate para acceder al portal del cliente.</p>
+          <h1 className="mt-2 text-2xl font-bold">Unitik-Cob</h1>
+          <p className="mt-1 text-sm text-slate-300">
+            Plataforma de gestión del servicio de internet
+          </p>
         </div>
+
+        <div className="rounded-2xl bg-white p-6 shadow-2xl shadow-cyan-950/40 ring-1 ring-white/20 sm:p-8">
+          <div className="mb-6 flex justify-center">
+            <BrandLogo className="h-36 w-auto" alt="UNITIK Internet Sin Límite" />
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            {isDemoMode() && (
+              <section
+                aria-label="Acceso a la demo"
+                className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3"
+              >
+                <p className="text-xs font-semibold text-amber-900">
+                  Acceso de demostración · elige un perfil
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {DEMO_ACCOUNTS.map(({ role, name }) => (
+                    <button
+                      className="rounded-md border border-amber-300 bg-white px-2 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                      key={role}
+                      onClick={() => enterDemo(role)}
+                      type="button"
+                    >
+                      Entrar como {name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-relaxed text-amber-800">
+                  Los datos son simulados y se guardan solo en este navegador. No uses información
+                  real.
+                </p>
+              </section>
+            )}
+            <div>
+              <label htmlFor="identifier" className="mb-1 block text-sm font-medium text-slate-700">
+                Correo o cédula
+              </label>
+              <input
+                id="identifier"
+                type="text"
+                autoComplete="username"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-unitik-500 focus:outline-none"
+                {...register('identifier')}
+              />
+              {errors.identifier && (
+                <p className="mt-1 text-xs text-red-600">{errors.identifier.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
+                Contraseña
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-unitik-500 focus:outline-none"
+                {...register('password')}
+              />
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
+              )}
+            </div>
+
+            {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-lg bg-unitik-600 py-2 text-sm font-semibold text-white transition hover:bg-unitik-700 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Ingresando…' : 'Ingresar'}
+            </button>
+          </form>
+
+          <div className="mt-4 text-center text-xs text-slate-500">
+            <p>
+              Los clientes ingresan con su correo o documento y pueden crear una cuenta desde aquí.
+            </p>
+            <Link
+              to="/registro"
+              className="mt-3 inline-flex rounded-lg border border-unitik-200 px-4 py-2 font-semibold text-unitik-700 transition hover:bg-unitik-50"
+            >
+              Crear cuenta de cliente
+            </Link>
+            <p className="mt-1">Regístrate para acceder al portal del cliente.</p>
+          </div>
+        </div>
+
+        <p className="mt-5 text-center text-xs text-slate-400">
+          UNITIK Internet Sin Límite S.A.S. · Cumbitara, Nariño
+        </p>
       </div>
     </main>
   );

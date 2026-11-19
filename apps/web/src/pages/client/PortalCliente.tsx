@@ -112,7 +112,7 @@ export default function PortalCliente() {
       <div className="mx-auto max-w-md space-y-4">
         <header className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm">
           <div className="flex min-w-0 items-center gap-3">
-            <BrandLogo className="h-10 w-auto shrink-0" />
+            <BrandLogo className="h-14 w-auto shrink-0" alt="UNITIK Internet Sin Límite" />
             <div className="min-w-0">
               <h1 className="truncate text-sm font-bold text-slate-900">Portal del cliente</h1>
               <p className="truncate text-xs text-slate-500">
