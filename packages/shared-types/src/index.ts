@@ -48,6 +48,20 @@ export interface DashboardKpis {
   devicesTotal: number;
 }
 
+/** Response of GET /api/cashier/daily-close (mirrors apps/api cashier.service.ts). */
+export interface DailyClose {
+  date: string;
+  cashierId?: string;
+  totalReceived: number;
+  paymentsCount: number;
+  payments: Array<{
+    receiptTime: string;
+    invoiceNumber: string;
+    clientName: string;
+    amount: number;
+  }>;
+}
+
 /** Formats an amount as Colombian pesos: $ 1.234.567 (no decimals). */
 export function formatCop(amount: number): string {
   return `$ ${Math.round(amount).toLocaleString('es-CO')}`;

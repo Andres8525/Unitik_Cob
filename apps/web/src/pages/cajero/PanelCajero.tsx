@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Banknote, CheckCircle2, LoaderCircle, Search, UserRound } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -77,6 +78,7 @@ export default function PanelCajero() {
   const buscarCliente = useCajeroStore((state) => state.buscarCliente);
   const seleccionarCliente = useCajeroStore((state) => state.seleccionarCliente);
   const registrarPagoEfectivo = useCajeroStore((state) => state.registrarPagoEfectivo);
+  const queryClient = useQueryClient();
   const {
     register,
     handleSubmit,
@@ -88,7 +90,9 @@ export default function PanelCajero() {
   };
 
   const payInvoice = (invoiceId: string) => {
-    void registrarPagoEfectivo(invoiceId).catch(() => undefined);
+    void registrarPagoEfectivo(invoiceId)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['cashier', 'daily-close'] }))
+      .catch(() => undefined);
   };
 
   return (
