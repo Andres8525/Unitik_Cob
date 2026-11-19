@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { api } from '../../api/http';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
+import DashboardShell from '../../components/DashboardShell';
+import { ADMIN_NAV_ITEMS } from '../../components/navigation';
 
 interface AdminClient {
   id: string;
@@ -28,16 +29,6 @@ const searchSchema = z.object({
 });
 
 type SearchValues = z.infer<typeof searchSchema>;
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/admin/dashboard' },
-  { label: 'Clientes', to: '/admin/clientes', icon: <Users className="h-4 w-4" /> },
-  { label: 'Planes', to: '/admin/planes' },
-  { label: 'Políticas', to: '/admin/politicas' },
-  { label: 'Facturación', to: '/admin/facturacion' },
-  { label: 'Operación', to: '/admin/operacion' },
-  { label: 'Informes', to: '/admin/informes' },
-];
 
 export default function AdminClientesPage() {
   const [clients, setClients] = useState<AdminClient[]>([]);
@@ -68,7 +59,7 @@ export default function AdminClientesPage() {
   };
 
   return (
-    <DashboardShell title="Clientes" subtitle="Consulta y seguimiento de clientes registrados." navItems={navItems}>
+    <DashboardShell title="Clientes" subtitle="Consulta y seguimiento de clientes registrados." navItems={ADMIN_NAV_ITEMS}>
       <section className="space-y-5">
         <div className="flex flex-col gap-4 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-end sm:justify-between">
           <form className="flex w-full flex-col gap-3 sm:flex-row" onSubmit={handleSubmit(loadClients)}>

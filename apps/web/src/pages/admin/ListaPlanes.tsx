@@ -1,23 +1,14 @@
 import { useState } from 'react';
-import { Banknote, BarChart3, CreditCard, FileText, Plus, Settings, Users, Wrench } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { formatCop } from '@unitik/shared-types';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
+import DashboardShell from '../../components/DashboardShell';
+import { ADMIN_NAV_ITEMS } from '../../components/navigation';
 import {
   usePlanesStore,
   type NewServicePlan,
   type ServicePlan,
 } from '../../stores/planes';
 import FormularioPlan from './FormularioPlan';
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/admin/dashboard', icon: <BarChart3 className="h-4 w-4" /> },
-  { label: 'Clientes', to: '/admin/clientes', icon: <Users className="h-4 w-4" /> },
-  { label: 'Planes', to: '/admin/planes', icon: <Banknote className="h-4 w-4" /> },
-  { label: 'Políticas', to: '/admin/politicas', icon: <Settings className="h-4 w-4" /> },
-  { label: 'Facturación', to: '/admin/facturacion', icon: <CreditCard className="h-4 w-4" /> },
-  { label: 'Operación', to: '/admin/operacion', icon: <Wrench className="h-4 w-4" /> },
-  { label: 'Informes', to: '/admin/informes', icon: <FileText className="h-4 w-4" /> },
-];
 
 export default function ListaPlanes() {
   const planes = usePlanesStore((state) => state.planes);
@@ -39,7 +30,7 @@ export default function ListaPlanes() {
     <DashboardShell
       title="Planes de servicio"
       subtitle="Administra las tarifas y características de Fibra Óptica y Radio Enlace."
-      navItems={navItems}
+      navItems={ADMIN_NAV_ITEMS}
     >
       <section className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-5">

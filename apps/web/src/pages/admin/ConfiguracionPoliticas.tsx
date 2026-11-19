@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
-import { Banknote, BarChart3, CreditCard, FileText, Settings, Users, Wrench } from 'lucide-react';
 import { api, ApiError } from '../../api/http';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
+import DashboardShell from '../../components/DashboardShell';
+import { ADMIN_NAV_ITEMS } from '../../components/navigation';
 import {
   usePoliticasStore,
   type ActivePaymentPromise,
@@ -26,16 +26,6 @@ const policySchema = z
   });
 
 type PolicyFormValues = z.infer<typeof policySchema>;
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/admin/dashboard', icon: <BarChart3 className="h-4 w-4" /> },
-  { label: 'Clientes', to: '/admin/clientes', icon: <Users className="h-4 w-4" /> },
-  { label: 'Planes', to: '/admin/planes', icon: <Banknote className="h-4 w-4" /> },
-  { label: 'Políticas', to: '/admin/politicas', icon: <Settings className="h-4 w-4" /> },
-  { label: 'Facturación', to: '/admin/facturacion', icon: <CreditCard className="h-4 w-4" /> },
-  { label: 'Operación', to: '/admin/operacion', icon: <Wrench className="h-4 w-4" /> },
-  { label: 'Informes', to: '/admin/informes', icon: <FileText className="h-4 w-4" /> },
-];
 
 function getPromiseClientName(promise: ActivePaymentPromise): string {
   return `${promise.client.user.firstName} ${promise.client.user.lastName}`;
@@ -126,7 +116,7 @@ export default function ConfiguracionPoliticas() {
     <DashboardShell
       title="Políticas de corte y mora"
       subtitle="Configura reglas globales de facturación y excepciones de pago."
-      navItems={navItems}
+      navItems={ADMIN_NAV_ITEMS}
     >
       {loadError && (
         <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">

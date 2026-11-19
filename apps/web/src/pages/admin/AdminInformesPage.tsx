@@ -1,19 +1,10 @@
 import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { useState } from 'react';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
+import DashboardShell from '../../components/DashboardShell';
+import { ADMIN_NAV_ITEMS } from '../../components/navigation';
 import { api, apiUrl, refreshSession } from '../../api/http';
 import { isDemoMode } from '../../api/demo';
 import { useAuthStore } from '../../stores/auth';
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/admin/dashboard' },
-  { label: 'Clientes', to: '/admin/clientes' },
-  { label: 'Planes', to: '/admin/planes' },
-  { label: 'Políticas', to: '/admin/politicas' },
-  { label: 'Facturación', to: '/admin/facturacion' },
-  { label: 'Operación', to: '/admin/operacion' },
-  { label: 'Informes', to: '/admin/informes', icon: <FileText className="h-4 w-4" /> },
-];
 
 async function getReport(url: string): Promise<Response> {
   const request = () =>
@@ -82,7 +73,7 @@ export default function AdminInformesPage() {
     <DashboardShell
       title="Informes"
       subtitle="Descarga reportes de recaudo y clientes por plan."
-      navItems={navItems}
+      navItems={ADMIN_NAV_ITEMS}
     >
       <section className="grid gap-5 md:grid-cols-2">
         {[

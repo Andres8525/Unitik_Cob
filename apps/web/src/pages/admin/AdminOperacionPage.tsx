@@ -1,7 +1,8 @@
 import { Activity, RefreshCw, Router, Ticket, Wrench } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/http';
-import DashboardShell, { type DashboardNavItem } from '../../components/DashboardShell';
+import DashboardShell from '../../components/DashboardShell';
+import { ADMIN_NAV_ITEMS } from '../../components/navigation';
 
 interface NetworkDevice {
   id: string;
@@ -31,16 +32,6 @@ interface SupportTicket {
   category: string;
   createdAt: string;
 }
-
-const navItems: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/admin/dashboard' },
-  { label: 'Clientes', to: '/admin/clientes' },
-  { label: 'Planes', to: '/admin/planes' },
-  { label: 'Políticas', to: '/admin/politicas' },
-  { label: 'Facturación', to: '/admin/facturacion' },
-  { label: 'Operación', to: '/admin/operacion', icon: <Wrench className="h-4 w-4" /> },
-  { label: 'Informes', to: '/admin/informes' },
-];
 
 export default function AdminOperacionPage() {
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
@@ -92,7 +83,7 @@ export default function AdminOperacionPage() {
   const openTickets = tickets.filter((ticket) => ['OPEN', 'IN_PROGRESS'].includes(ticket.status));
 
   return (
-    <DashboardShell title="Operación" subtitle="Estado de red, instalaciones y soporte." navItems={navItems}>
+    <DashboardShell title="Operación" subtitle="Estado de red, instalaciones y soporte." navItems={ADMIN_NAV_ITEMS}>
       <div className="space-y-5">
         <div className="flex justify-end">
           <button
