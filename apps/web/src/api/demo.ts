@@ -711,12 +711,27 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
   } else if (route === '/installations' && method === 'POST') {
     const installationId = `demo-installation-${crypto.randomUUID()}`;
     const client = findClient(state, String(body.clientId ?? ''));
+    const macAddress = String(body.macAddress ?? '').toUpperCase();
+    // Same rule as the API: one MAC belongs to a single client on any router.
+    const macOwner = state.installations.find(
+      (item) => item.macAddress === macAddress && item.clientId !== body.clientId,
+    );
+    if (macOwner) {
+      const owner = findClient(state, String(macOwner.clientId));
+      throw new Error(
+        `La MAC ${macAddress} ya está registrada${owner ? ` para el cliente ${owner.clientCode}` : ' para otro cliente'}`,
+      );
+    }
     const installation = {
       id: installationId,
       clientId: body.clientId,
+      deviceId: body.deviceId,
       serviceType: body.serviceType,
       installationDate: body.installationDate ?? now,
       extraCostsApplied: body.aplicarCostosExtra === true,
+      macAddress,
+      ipAddress: body.ipAddress,
+      equipmentSerial: String(body.equipmentSerial ?? '').toUpperCase(),
     };
     state.installations.unshift(installation);
     writeState(state);
@@ -726,8 +741,9 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
         id: `demo-access-${crypto.randomUUID()}`,
         clientId: body.clientId,
         deviceId: body.deviceId,
-        macAddress: body.macAddress ?? null,
+        macAddress,
         ipAssigned: body.ipAddress ?? null,
+        equipmentSerial: installation.equipmentSerial,
       },
       clientStatus: client?.status ?? 'ACTIVE',
     };

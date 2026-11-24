@@ -18,6 +18,7 @@ const initialFormValues: ActaInstalacionFormValues = {
   clientId: '',
   deviceId: '',
   macAddress: '',
+  equipmentSerial: '',
   ipAddress: '',
   aplicarCostosExtra: false,
   observaciones: '',
@@ -44,6 +45,7 @@ export default function ActaInstalacion() {
     reset,
     watch,
     setValue,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<ActaInstalacionFormValues>({
     resolver: zodResolver(actaInstalacionSchema),
@@ -67,7 +69,9 @@ export default function ActaInstalacion() {
       await guardarActaInstalacion(values);
       reset(initialFormValues);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'No se pudo guardar el acta.');
+      const message = error instanceof Error ? error.message : 'No se pudo guardar el acta.';
+      if (/MAC/.test(message)) setError('macAddress', { type: 'server', message });
+      setSaveError(message);
     }
   };
 
@@ -159,7 +163,7 @@ export default function ActaInstalacion() {
             </p>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className="block text-sm font-medium text-slate-700">
               Dirección MAC
               <input
@@ -171,6 +175,22 @@ export default function ActaInstalacion() {
               />
               {errors.macAddress && (
                 <span className="mt-1 block text-xs text-red-600">{errors.macAddress.message}</span>
+              )}
+            </label>
+
+            <label className="block text-sm font-medium text-slate-700">
+              Serial del equipo
+              <input
+                {...register('equipmentSerial')}
+                autoComplete="off"
+                className={`${inputClass} uppercase`}
+                placeholder="Ej. HG8145V5-48575443A1B2"
+                maxLength={60}
+              />
+              {errors.equipmentSerial && (
+                <span className="mt-1 block text-xs text-red-600">
+                  {errors.equipmentSerial.message}
+                </span>
               )}
             </label>
 

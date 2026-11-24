@@ -27,6 +27,7 @@ export interface SavedInstallation {
     deviceId: string;
     macAddress: string | null;
     ipAssigned: string | null;
+    equipmentSerial?: string | null;
   };
   clientStatus: 'ACTIVE' | 'SUSPENDED' | 'CUT' | 'CANCELLED';
 }
@@ -113,6 +114,7 @@ export const useTecnicoStore = create<TecnicoState>((set, get) => ({
       deviceId: datos.deviceId,
       serviceType: client.serviceType,
       macAddress: datos.macAddress,
+      equipmentSerial: datos.equipmentSerial,
       ipAddress: datos.ipAddress,
       aplicarCostosExtra: datos.aplicarCostosExtra,
       observations: datos.observaciones || undefined,

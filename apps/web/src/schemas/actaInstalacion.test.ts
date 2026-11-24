@@ -5,6 +5,7 @@ const validActa = {
   clientId: '4c4a5d87-f829-4de5-b3ed-a79c4add268b',
   deviceId: 'ebdbac10-9680-48c7-897c-18480399df51',
   macAddress: 'aa:bb:cc:dd:ee:ff',
+  equipmentSerial: 'hg8145v5-0001',
   ipAddress: '192.168.10.25',
   aplicarCostosExtra: false,
   observaciones: '',
