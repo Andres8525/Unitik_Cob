@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Audited } from '../../common/decorators/audited.decorator';
@@ -6,13 +7,17 @@ import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CashierService, CashReceipt, DailyClose } from './cashier.service';
 import { ReceiveCashDto } from './dto/receive-cash.dto';
+import { ReceiptsService } from './receipts.service';
 
 @ApiTags('cashier')
 @ApiBearerAuth()
 @Roles(Role.CASHIER, Role.ADMIN)
 @Controller('cashier')
 export class CashierController {
-  constructor(private readonly cashierService: CashierService) {}
+  constructor(
+    private readonly cashierService: CashierService,
+    private readonly receiptsService: ReceiptsService,
+  ) {}
 
   @Post('payments')
   @Audited({ entity: 'Payment', action: 'CASH_RECEIVED' })
@@ -38,5 +43,22 @@ export class CashierController {
   @ApiOperation({ summary: 'Estado de cuenta de un cliente (deuda y últimos pagos)' })
   accountStatus(@Param('clientId', ParseUUIDPipe) clientId: string) {
     return this.cashierService.accountStatus(clientId);
+  }
+
+  @Get('receipts/:paymentId/pdf')
+  @ApiOperation({ summary: 'Descargar el recibo de un pago validado (PDF)' })
+  async receiptPdf(
+    @Param('paymentId', ParseUUIDPipe) paymentId: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const { receipt, pdf } = await this.receiptsService.renderPdf(paymentId);
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader('Content-Length', String(pdf.length));
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${receipt.receiptNumber}.pdf"`,
+    );
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.end(pdf);
   }
 }
