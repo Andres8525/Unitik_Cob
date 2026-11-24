@@ -62,10 +62,12 @@ export class InstallationsController {
       deviceId: string;
       macAddress: string | null;
       ipAssigned: string | null;
+      equipmentSerial: string | null;
     };
     clientStatus: ClientStatus;
   }> {
     const macAddress = normalizeMac(dto.macAddress);
+    const equipmentSerial = dto.equipmentSerial.trim().toUpperCase();
     const result = await this.prisma
       .$transaction(async (tx) => {
         const client = await tx.client.findUnique({ where: { id: dto.clientId } });
@@ -114,6 +116,9 @@ export class InstallationsController {
             observations: dto.observations,
             installationDate: new Date(dto.installationDate),
             signedUrl: dto.signedUrl,
+            macAddress,
+            ipAddress: dto.ipAddress,
+            equipmentSerial,
           },
         });
 
@@ -127,6 +132,7 @@ export class InstallationsController {
                 deviceId: dto.deviceId,
                 macAddress,
                 ipAssigned: dto.ipAddress,
+                equipmentSerial,
                 isEnabled: true,
                 lastAction: 'installation-registered',
                 lastActionAt: new Date(),
@@ -137,6 +143,7 @@ export class InstallationsController {
                 deviceId: true,
                 macAddress: true,
                 ipAssigned: true,
+                equipmentSerial: true,
               },
             })
           : await tx.networkAccess.create({
@@ -145,6 +152,7 @@ export class InstallationsController {
                 deviceId: dto.deviceId,
                 macAddress,
                 ipAssigned: dto.ipAddress,
+                equipmentSerial,
                 isEnabled: true,
                 lastAction: 'installation-registered',
                 lastActionAt: new Date(),
@@ -155,6 +163,7 @@ export class InstallationsController {
                 deviceId: true,
                 macAddress: true,
                 ipAssigned: true,
+                equipmentSerial: true,
               },
             });
 

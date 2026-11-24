@@ -12,6 +12,7 @@ import {
   IsString,
   IsUUID,
   IsUrl,
+  Length,
   Matches,
 } from 'class-validator';
 
@@ -30,6 +31,17 @@ export class CreateInstallationDto {
     message: 'La dirección MAC debe tener formato XX:XX:XX:XX:XX:XX',
   })
   macAddress!: string;
+
+  @ApiProperty({
+    description: 'Número de serie del equipo instalado (CPE)',
+    example: 'HG8145V5-48575443A1B2',
+  })
+  @IsString()
+  @Length(4, 60, { message: 'El serial debe tener entre 4 y 60 caracteres' })
+  @Matches(/^[A-Za-z0-9._/-]+$/, {
+    message: 'El serial solo admite letras, números, punto, guion y barra',
+  })
+  equipmentSerial!: string;
 
   @ApiProperty({ example: '192.168.10.25' })
   @IsIP('4', { message: 'La dirección IPv4 no es válida' })
@@ -57,7 +69,9 @@ export class CreateInstallationDto {
   @IsBoolean()
   clientPaidEquipment?: boolean;
 
-  @ApiPropertyOptional({ description: 'La instalación requiere costos adicionales de equipo/cableado' })
+  @ApiPropertyOptional({
+    description: 'La instalación requiere costos adicionales de equipo/cableado',
+  })
   @IsOptional()
   @IsBoolean()
   aplicarCostosExtra?: boolean;

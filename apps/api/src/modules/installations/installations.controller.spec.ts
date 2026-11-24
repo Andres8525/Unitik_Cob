@@ -24,6 +24,7 @@ describe('InstallationsController', () => {
     deviceId: 'device-1',
     serviceType: ServiceType.FIBER,
     macAddress: 'AA:BB:CC:DD:EE:FF',
+    equipmentSerial: 'HG8145V5-0001',
     ipAddress: '192.168.10.25',
     aplicarCostosExtra: true,
     equipmentList: [{ item: 'Equipo de acceso', quantity: 1 }],
