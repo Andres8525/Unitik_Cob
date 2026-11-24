@@ -684,6 +684,26 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
         apiPort: 8728,
       },
     ];
+  } else if (/^\/network\/devices\/[^/]+\/available-ips$/.test(route) && method === 'GET') {
+    const deviceId = route.split('/')[3];
+    const routerIp: Record<string, string> = {
+      'demo-device-001': '192.168.88.1',
+      'demo-device-002': '192.168.88.2',
+    };
+    const used = new Set(
+      state.installations
+        .filter((item) => item.deviceId === deviceId && typeof item.ipAddress === 'string')
+        .map((item) => String(item.ipAddress)),
+    );
+    used.add(routerIp[deviceId] ?? '192.168.88.1');
+    const limit = Number(url.searchParams.get('limit') ?? 256);
+    const available: string[] = [];
+    // Gateway .1 is reserved; hosts .2-.254 of the /24 are client addresses.
+    for (let host = 2; host <= 254 && available.length < limit; host += 1) {
+      const ip = `192.168.88.${host}`;
+      if (!used.has(ip)) available.push(ip);
+    }
+    result = { pool: '192.168.88.0/24', total: 254, used: used.size + 1, available };
   } else if (/^\/network\/devices\/[^/]+\/ping$/.test(route) && method === 'POST') {
     result = { online: true };
   } else if (route === '/installations' && method === 'GET') {

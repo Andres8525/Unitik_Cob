@@ -31,12 +31,23 @@ export interface SavedInstallation {
   clientStatus: 'ACTIVE' | 'SUSPENDED' | 'CUT' | 'CANCELLED';
 }
 
+export interface AvailableIps {
+  pool: string;
+  total: number;
+  used: number;
+  available: string[];
+}
+
 interface TecnicoState {
   clientes: TecnicoClient[];
   dispositivos: NetworkDeviceOption[];
   catalogosLoading: boolean;
   catalogosError: string | null;
   actaGuardada: SavedInstallation | null;
+  ipsDisponibles: AvailableIps | null;
+  ipsLoading: boolean;
+  ipsError: string | null;
+  cargarIpsDisponibles: (deviceId: string) => Promise<void>;
   cargarCatalogos: () => Promise<void>;
   guardarActaInstalacion: (datos: ActaInstalacionFormValues) => Promise<SavedInstallation>;
   limpiarActaGuardada: () => void;
@@ -48,6 +59,30 @@ export const useTecnicoStore = create<TecnicoState>((set, get) => ({
   catalogosLoading: false,
   catalogosError: null,
   actaGuardada: null,
+  ipsDisponibles: null,
+  ipsLoading: false,
+  ipsError: null,
+
+  cargarIpsDisponibles: async (deviceId) => {
+    if (!deviceId) {
+      set({ ipsDisponibles: null, ipsError: null, ipsLoading: false });
+      return;
+    }
+    set({ ipsLoading: true, ipsError: null });
+    try {
+      const ips = await api<AvailableIps>(
+        `/network/devices/${encodeURIComponent(deviceId)}/available-ips?limit=256`,
+      );
+      set({ ipsDisponibles: ips, ipsLoading: false });
+    } catch (error) {
+      set({
+        ipsDisponibles: null,
+        ipsLoading: false,
+        ipsError:
+          error instanceof Error ? error.message : 'No se pudieron consultar las IP disponibles.',
+      });
+    }
+  },
 
   cargarCatalogos: async () => {
     set({ catalogosLoading: true, catalogosError: null });

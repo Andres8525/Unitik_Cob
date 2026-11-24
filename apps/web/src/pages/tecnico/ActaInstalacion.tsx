@@ -5,7 +5,10 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/DashboardShell';
 import { TECHNICIAN_NAV_ITEMS } from '../../components/navigation';
-import { actaInstalacionSchema, type ActaInstalacionFormValues } from '../../schemas/actaInstalacion';
+import {
+  actaInstalacionSchema,
+  type ActaInstalacionFormValues,
+} from '../../schemas/actaInstalacion';
 import { useTecnicoStore } from '../../stores/tecnico';
 
 const inputClass =
@@ -30,11 +33,17 @@ export default function ActaInstalacion() {
   const cargarCatalogos = useTecnicoStore((state) => state.cargarCatalogos);
   const guardarActaInstalacion = useTecnicoStore((state) => state.guardarActaInstalacion);
   const limpiarActaGuardada = useTecnicoStore((state) => state.limpiarActaGuardada);
+  const ipsDisponibles = useTecnicoStore((state) => state.ipsDisponibles);
+  const ipsLoading = useTecnicoStore((state) => state.ipsLoading);
+  const ipsError = useTecnicoStore((state) => state.ipsError);
+  const cargarIpsDisponibles = useTecnicoStore((state) => state.cargarIpsDisponibles);
   const [saveError, setSaveError] = useState('');
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ActaInstalacionFormValues>({
     resolver: zodResolver(actaInstalacionSchema),
@@ -44,6 +53,12 @@ export default function ActaInstalacion() {
   useEffect(() => {
     void cargarCatalogos().catch(() => undefined);
   }, [cargarCatalogos]);
+
+  const selectedDeviceId = watch('deviceId');
+  useEffect(() => {
+    setValue('ipAddress', '');
+    void cargarIpsDisponibles(selectedDeviceId);
+  }, [selectedDeviceId, cargarIpsDisponibles, setValue]);
 
   const submit = async (values: ActaInstalacionFormValues) => {
     setSaveError('');
@@ -57,30 +72,44 @@ export default function ActaInstalacion() {
   };
 
   return (
-    <DashboardShell title="Técnico" subtitle="Registro de instalación y equipo de red" navItems={TECHNICIAN_NAV_ITEMS}>
+    <DashboardShell
+      title="Técnico"
+      subtitle="Registro de instalación y equipo de red"
+      navItems={TECHNICIAN_NAV_ITEMS}
+    >
       <section className="mx-auto w-full max-w-3xl rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-8">
         <header className="mb-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-unitik-50 text-unitik-700">
             <MapPinned className="h-5 w-5" aria-hidden="true" />
           </div>
-          <h2 className="mt-4 text-xl font-bold text-slate-900 sm:text-2xl">Acta de Instalación Técnica</h2>
+          <h2 className="mt-4 text-xl font-bold text-slate-900 sm:text-2xl">
+            Acta de Instalación Técnica
+          </h2>
           <p className="mt-1 text-sm text-slate-500">
             Registra el equipo, su dirección de red y las observaciones del trabajo en terreno.
           </p>
         </header>
 
         {actaGuardada && (
-          <div className="mb-5 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status">
+          <div
+            className="mb-5 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+            role="status"
+          >
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
             <div>
               <p className="font-semibold">Acta registrada y equipo vinculado.</p>
-              <p className="mt-1">El cliente quedó activo. Identificador del acta: {actaGuardada.installation.id}</p>
+              <p className="mt-1">
+                El cliente quedó activo. Identificador del acta: {actaGuardada.installation.id}
+              </p>
             </div>
           </div>
         )}
 
         {(catalogosError || saveError) && (
-          <div className="mb-5 flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+          <div
+            className="mb-5 flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            role="alert"
+          >
             <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
             <span>{catalogosError || saveError}</span>
           </div>
@@ -98,7 +127,9 @@ export default function ActaInstalacion() {
                   </option>
                 ))}
               </select>
-              {errors.clientId && <span className="mt-1 block text-xs text-red-600">{errors.clientId.message}</span>}
+              {errors.clientId && (
+                <span className="mt-1 block text-xs text-red-600">{errors.clientId.message}</span>
+              )}
             </label>
 
             <label className="block text-sm font-medium text-slate-700">
@@ -111,7 +142,9 @@ export default function ActaInstalacion() {
                   </option>
                 ))}
               </select>
-              {errors.deviceId && <span className="mt-1 block text-xs text-red-600">{errors.deviceId.message}</span>}
+              {errors.deviceId && (
+                <span className="mt-1 block text-xs text-red-600">{errors.deviceId.message}</span>
+              )}
             </label>
           </div>
 
@@ -136,19 +169,44 @@ export default function ActaInstalacion() {
                 placeholder="AA:BB:CC:DD:EE:FF"
                 maxLength={17}
               />
-              {errors.macAddress && <span className="mt-1 block text-xs text-red-600">{errors.macAddress.message}</span>}
+              {errors.macAddress && (
+                <span className="mt-1 block text-xs text-red-600">{errors.macAddress.message}</span>
+              )}
             </label>
 
             <label className="block text-sm font-medium text-slate-700">
-              Dirección IP asignada
-              <input
+              Dirección IP disponible
+              <select
                 {...register('ipAddress')}
-                autoComplete="off"
                 className={inputClass}
-                inputMode="decimal"
-                placeholder="192.168.10.25"
-              />
-              {errors.ipAddress && <span className="mt-1 block text-xs text-red-600">{errors.ipAddress.message}</span>}
+                disabled={!selectedDeviceId || ipsLoading || !ipsDisponibles?.available.length}
+              >
+                <option value="">
+                  {!selectedDeviceId
+                    ? 'Primero selecciona el dispositivo'
+                    : ipsLoading
+                      ? 'Consultando IP disponibles…'
+                      : ipsDisponibles?.available.length
+                        ? 'Selecciona una IP libre'
+                        : 'No hay IP libres en el pool'}
+                </option>
+                {ipsDisponibles?.available.map((ip) => (
+                  <option key={ip} value={ip}>
+                    {ip}
+                  </option>
+                ))}
+              </select>
+              {ipsDisponibles && (
+                <span className="mt-1 block text-xs text-slate-500">
+                  Pool {ipsDisponibles.pool} · {ipsDisponibles.available.length} disponibles
+                  {ipsDisponibles.available.length >= 256 ? ' (primeras 256)' : ''} ·{' '}
+                  {ipsDisponibles.used} en uso
+                </span>
+              )}
+              {ipsError && <span className="mt-1 block text-xs text-red-600">{ipsError}</span>}
+              {errors.ipAddress && (
+                <span className="mt-1 block text-xs text-red-600">{errors.ipAddress.message}</span>
+              )}
             </label>
           </div>
 
@@ -159,7 +217,9 @@ export default function ActaInstalacion() {
               type="checkbox"
             />
             <span>
-              <span className="block font-semibold">Aplicar costos extra por cableado/equipamiento excedente</span>
+              <span className="block font-semibold">
+                Aplicar costos extra por cableado/equipamiento excedente
+              </span>
               <span className="mt-1 block text-xs text-slate-600">
                 La novedad quedará registrada para el flujo de facturación.
               </span>
@@ -175,7 +235,11 @@ export default function ActaInstalacion() {
               placeholder="Referencias de ubicación, condiciones del terreno o detalles de instalación…"
               rows={4}
             />
-            {errors.observaciones && <span className="mt-1 block text-xs text-red-600">{errors.observaciones.message}</span>}
+            {errors.observaciones && (
+              <span className="mt-1 block text-xs text-red-600">
+                {errors.observaciones.message}
+              </span>
+            )}
           </label>
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
@@ -188,7 +252,12 @@ export default function ActaInstalacion() {
             </button>
             <button
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isSubmitting || catalogosLoading || clientes.length === 0 || dispositivos.length === 0}
+              disabled={
+                isSubmitting ||
+                catalogosLoading ||
+                clientes.length === 0 ||
+                dispositivos.length === 0
+              }
               type="submit"
             >
               <Save className="h-4 w-4" aria-hidden="true" />
@@ -200,8 +269,9 @@ export default function ActaInstalacion() {
         <div className="mt-6 flex gap-2 rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
           <Info className="h-4 w-4 shrink-0 text-unitik-600" aria-hidden="true" />
           <p>
-            La vinculación de esta IP/MAC registra el equipo y permite activar al cliente en el sistema. La
-            configuración efectiva del RouterBoard y la factura dependen de la provisión PPPoE y del plan contratado.
+            La vinculación de esta IP/MAC registra el equipo y permite activar al cliente en el
+            sistema. La configuración efectiva del RouterBoard y la factura dependen de la provisión
+            PPPoE y del plan contratado.
           </p>
         </div>
       </section>
