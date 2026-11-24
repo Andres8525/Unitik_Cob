@@ -35,6 +35,30 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   return parse<T>(response);
 }
 
+/**
+ * Authenticated request for non-JSON payloads (multipart uploads, file and
+ * PDF downloads). `path` is relative to /api. Retries once after a refresh.
+ */
+export async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const request = () => {
+    const token = useAuthStore.getState().accessToken;
+    return fetch(apiUrl(`/api${path}`), {
+      ...init,
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers },
+    });
+  };
+  let response = await request();
+  if (response.status === 401 && (await refreshSession())) response = await request();
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const message = Array.isArray(body.message)
+      ? body.message.join(' · ')
+      : (body.message ?? `Error ${response.status}`);
+    throw new ApiError(response.status, message);
+  }
+  return response;
+}
+
 function withAuth(path: string, options: RequestInit): Promise<Response> {
   const token = useAuthStore.getState().accessToken;
   return fetch(apiUrl(`/api${path}`), {

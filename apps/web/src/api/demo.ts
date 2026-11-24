@@ -327,7 +327,7 @@ function writeState(state: DemoState): void {
 }
 
 export function resetDemoData(): void {
-  for (const key of ['unitik-demo-data', 'unitik-demo-plans', 'unitik-demo-billing']) {
+  for (const key of ['unitik-demo-data', 'unitik-demo-plans', 'unitik-demo-billing', 'unitik-demo-files']) {
     window.localStorage.removeItem(key);
   }
   for (const key of ['unitik-auth', 'unitik-client-portal', 'unitik-notificaciones']) {
