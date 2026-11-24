@@ -2,6 +2,7 @@ import { Activity, RefreshCw, Router, Ticket, Wrench } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/http';
 import DashboardShell from '../../components/DashboardShell';
+import SecureImage from '../../components/SecureImage';
 import { ADMIN_NAV_ITEMS } from '../../components/navigation';
 
 interface NetworkDevice {
@@ -21,6 +22,11 @@ interface InstallationRecord {
   serviceType: string;
   installationDate: string;
   extraCostsApplied: boolean;
+  macAddress?: string | null;
+  ipAddress?: string | null;
+  equipmentSerial?: string | null;
+  sitePhotoId?: string | null;
+  equipmentPhotoId?: string | null;
 }
 
 interface SupportTicket {
@@ -156,6 +162,29 @@ export default function AdminOperacionPage() {
                   <li key={record.id} className="py-3 text-sm">
                     <p className="font-medium text-slate-800">{record.serviceType === 'FIBER' ? 'Fibra óptica' : 'Radio enlace'} · Cliente {record.clientId.slice(0, 8)}</p>
                     <p className="mt-1 text-xs text-slate-500">{new Date(record.installationDate).toLocaleString('es-CO')} {record.extraCostsApplied ? '· Costos extra por revisar' : ''}</p>
+                    {(record.macAddress || record.ipAddress || record.equipmentSerial) && (
+                      <p className="mt-1 font-mono text-xs text-slate-600">
+                        {[record.macAddress && `MAC ${record.macAddress}`, record.ipAddress && `IP ${record.ipAddress}`, record.equipmentSerial && `Serial ${record.equipmentSerial}`]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    )}
+                    {(record.sitePhotoId || record.equipmentPhotoId) && (
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        {record.sitePhotoId && (
+                          <figure>
+                            <SecureImage src={record.sitePhotoId} alt="Foto de la instalación" className="h-28 w-full rounded-lg" />
+                            <figcaption className="mt-1 text-xs text-slate-500">Instalación</figcaption>
+                          </figure>
+                        )}
+                        {record.equipmentPhotoId && (
+                          <figure>
+                            <SecureImage src={record.equipmentPhotoId} alt="Foto del equipo instalado" className="h-28 w-full rounded-lg" />
+                            <figcaption className="mt-1 text-xs text-slate-500">Equipo</figcaption>
+                          </figure>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
