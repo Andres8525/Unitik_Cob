@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { uploadFile } from '../api/files';
 import { api } from '../api/http';
 import type { ActaInstalacionFormValues } from '../schemas/actaInstalacion';
 
@@ -32,6 +33,11 @@ export interface SavedInstallation {
   clientStatus: 'ACTIVE' | 'SUSPENDED' | 'CUT' | 'CANCELLED';
 }
 
+export interface FotosActa {
+  instalacion: File | null;
+  equipo: File | null;
+}
+
 export interface AvailableIps {
   pool: string;
   total: number;
@@ -50,7 +56,10 @@ interface TecnicoState {
   ipsError: string | null;
   cargarIpsDisponibles: (deviceId: string) => Promise<void>;
   cargarCatalogos: () => Promise<void>;
-  guardarActaInstalacion: (datos: ActaInstalacionFormValues) => Promise<SavedInstallation>;
+  guardarActaInstalacion: (
+    datos: ActaInstalacionFormValues,
+    fotos?: FotosActa,
+  ) => Promise<SavedInstallation>;
   limpiarActaGuardada: () => void;
 }
 
@@ -105,9 +114,15 @@ export const useTecnicoStore = create<TecnicoState>((set, get) => ({
     }
   },
 
-  guardarActaInstalacion: async (datos) => {
+  guardarActaInstalacion: async (datos, fotos) => {
     const client = get().clientes.find((candidate) => candidate.id === datos.clientId);
     if (!client) throw new Error('Selecciona un cliente válido antes de guardar el acta.');
+
+    // Photos are uploaded first; the acta only stores their ids.
+    const [sitePhoto, equipmentPhoto] = await Promise.all([
+      fotos?.instalacion ? uploadFile(fotos.instalacion, 'INSTALLATION_SITE') : null,
+      fotos?.equipo ? uploadFile(fotos.equipo, 'INSTALLATION_EQUIPMENT') : null,
+    ]);
 
     const payload = {
       clientId: datos.clientId,
@@ -120,6 +135,8 @@ export const useTecnicoStore = create<TecnicoState>((set, get) => ({
       observations: datos.observaciones || undefined,
       equipmentList: [{ item: 'Equipo de acceso', quantity: 1 }],
       installationDate: new Date().toISOString(),
+      sitePhotoId: sitePhoto?.id,
+      equipmentPhotoId: equipmentPhoto?.id,
     };
 
     // When extra costs apply, the backend emits an event and stores a billing-review notification for admins.

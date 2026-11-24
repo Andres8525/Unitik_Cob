@@ -732,6 +732,8 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
       macAddress,
       ipAddress: body.ipAddress,
       equipmentSerial: String(body.equipmentSerial ?? '').toUpperCase(),
+      sitePhotoId: body.sitePhotoId ?? null,
+      equipmentPhotoId: body.equipmentPhotoId ?? null,
     };
     state.installations.unshift(installation);
     writeState(state);

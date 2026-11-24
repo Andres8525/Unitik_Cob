@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/DashboardShell';
+import ImageUploadField from '../../components/ImageUploadField';
 import { TECHNICIAN_NAV_ITEMS } from '../../components/navigation';
 import {
   actaInstalacionSchema,
@@ -39,6 +40,8 @@ export default function ActaInstalacion() {
   const ipsError = useTecnicoStore((state) => state.ipsError);
   const cargarIpsDisponibles = useTecnicoStore((state) => state.cargarIpsDisponibles);
   const [saveError, setSaveError] = useState('');
+  const [fotoInstalacion, setFotoInstalacion] = useState<File | null>(null);
+  const [fotoEquipo, setFotoEquipo] = useState<File | null>(null);
   const {
     register,
     handleSubmit,
@@ -66,8 +69,10 @@ export default function ActaInstalacion() {
     setSaveError('');
     limpiarActaGuardada();
     try {
-      await guardarActaInstalacion(values);
+      await guardarActaInstalacion(values, { instalacion: fotoInstalacion, equipo: fotoEquipo });
       reset(initialFormValues);
+      setFotoInstalacion(null);
+      setFotoEquipo(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo guardar el acta.';
       if (/MAC/.test(message)) setError('macAddress', { type: 'server', message });
@@ -229,6 +234,32 @@ export default function ActaInstalacion() {
               )}
             </label>
           </div>
+
+          <fieldset className="rounded-xl border border-slate-200 p-4">
+            <legend className="px-1 text-sm font-semibold text-slate-800">
+              Registro fotográfico
+            </legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ImageUploadField
+                label="Foto de la instalación"
+                hint="Poste, acometida o punto de instalación · máx. 5 MB"
+                value={fotoInstalacion}
+                onChange={setFotoInstalacion}
+                disabled={isSubmitting}
+              />
+              <ImageUploadField
+                label="Foto del equipo"
+                hint="Equipo instalado con su etiqueta de serial visible · máx. 5 MB"
+                value={fotoEquipo}
+                onChange={setFotoEquipo}
+                disabled={isSubmitting}
+              />
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              Las fotos quedan guardadas con el acta y el administrador puede consultarlas en
+              Operación.
+            </p>
+          </fieldset>
 
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-slate-800">
             <input

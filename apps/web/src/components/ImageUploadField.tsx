@@ -1,6 +1,6 @@
 import { Camera, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
-import { IMAGE_TYPES, MAX_FILE_BYTES } from '../api/files';
+import { IMAGE_TYPES, validateImageFile } from '../api/files';
 
 interface ImageUploadFieldProps {
   label: string;
@@ -9,15 +9,6 @@ interface ImageUploadFieldProps {
   onChange: (file: File | null) => void;
   error?: string;
   disabled?: boolean;
-}
-
-const acceptedTypes = new Set<string>(IMAGE_TYPES);
-
-/** Validates an image locally (type, 5 MB); returns an error message or null. */
-export function validateImageFile(file: File): string | null {
-  if (!acceptedTypes.has(file.type)) return 'La imagen debe estar en formato JPG, PNG o WEBP';
-  if (file.size > MAX_FILE_BYTES) return 'La imagen debe pesar 5 MB o menos';
-  return null;
 }
 
 /** Image picker with preview; on phones it can open the camera directly. */

@@ -14,6 +14,15 @@ export interface UploadedFile {
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
+const acceptedImageTypes = new Set<string>(IMAGE_TYPES);
+
+/** Validates an image locally (type, 5 MB); returns an error message or null. */
+export function validateImageFile(file: File): string | null {
+  if (!acceptedImageTypes.has(file.type)) return 'La imagen debe estar en formato JPG, PNG o WEBP';
+  if (file.size > MAX_FILE_BYTES) return 'La imagen debe pesar 5 MB o menos';
+  return null;
+}
+
 const DEMO_FILES_KEY = 'unitik-demo-files';
 /** Demo images are downscaled so several fit in the ~5 MB localStorage quota. */
 const DEMO_MAX_SIDE = 1280;
