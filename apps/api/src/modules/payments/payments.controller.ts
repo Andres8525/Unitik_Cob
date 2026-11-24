@@ -86,10 +86,11 @@ export class PaymentsController {
   }
 
   @Patch(':id/validate')
-  @Roles(Role.ADMIN, Role.CASHIER)
+  @Roles(Role.ADMIN)
   @Audited({ entity: 'Payment', action: 'VALIDATION' })
   @ApiOperation({
-    summary: 'Validar o rechazar un pago (dispara la reconexión encolada al aprobar)',
+    summary:
+      'Gestión de Pagos: el administrador aprueba o rechaza el comprobante (al aprobar se encola la reconexión)',
   })
   async validate(
     @Param('id', ParseUUIDPipe) id: string,
