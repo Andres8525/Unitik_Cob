@@ -21,6 +21,11 @@ export class RegisterPaymentDto {
   @IsString()
   reference?: string;
 
+  @ApiPropertyOptional({ description: 'Id del comprobante subido con POST /files (PAYMENT_PROOF)' })
+  @IsOptional()
+  @IsUUID('4', { message: 'El comprobante adjunto no es válido' })
+  proofFileId?: string;
+
   @ApiPropertyOptional({ description: 'URL del comprobante subido' })
   @IsOptional()
   @IsUrl({}, { message: 'proofUrl debe ser una URL válida' })

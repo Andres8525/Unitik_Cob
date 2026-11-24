@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
+  FilePurpose,
   InvoiceStatus,
   NotificationChannel,
   Payment,
@@ -17,6 +18,7 @@ import {
 } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { AuditService } from '../audit/audit.service';
+import { FilesService, fileUrl } from '../files/files.service';
 import { PaymentReconnectionPolicy } from '../governance/payment-reconnection.policy';
 import { PromisesService } from '../promises/promises.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -41,6 +43,7 @@ export class PaymentsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly promisesService: PromisesService,
     private readonly auditService: AuditService,
+    private readonly filesService: FilesService,
   ) {}
 
   /** Registers a payment. Nequi/transfer always start PENDING_VALIDATION. */
@@ -60,6 +63,9 @@ export class PaymentsService {
     if (invoice.status === InvoiceStatus.CANCELLED) {
       throw new ConflictException('La factura está anulada');
     }
+    if (dto.proofFileId) {
+      await this.filesService.assertOwnedFile(dto.proofFileId, FilePurpose.PAYMENT_PROOF, user);
+    }
 
     return this.prisma.payment.create({
       data: {
@@ -67,7 +73,9 @@ export class PaymentsService {
         amount: dto.amount,
         paymentMethod: dto.paymentMethod,
         reference: dto.reference,
-        proofUrl: dto.proofUrl,
+        proofFileId: dto.proofFileId,
+        // The stored file URL satisfies the "proof required" rule of manual validation.
+        proofUrl: dto.proofFileId ? fileUrl(dto.proofFileId) : dto.proofUrl,
         status: PaymentStatus.PENDING_VALIDATION,
         paidAt: new Date(),
       },
@@ -97,7 +105,9 @@ export class PaymentsService {
       const claim = await tx.invoice.updateMany({
         where: {
           id: invoiceId,
-          status: { in: [InvoiceStatus.PENDING, InvoiceStatus.OVERDUE, InvoiceStatus.PROMISE_TO_PAY] },
+          status: {
+            in: [InvoiceStatus.PENDING, InvoiceStatus.OVERDUE, InvoiceStatus.PROMISE_TO_PAY],
+          },
         },
         data: { status: InvoiceStatus.PAID },
       });

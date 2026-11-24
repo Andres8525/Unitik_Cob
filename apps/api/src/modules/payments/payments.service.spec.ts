@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test } from '@nestjs/testing';
 import { InvoiceStatus, PaymentMethod, PaymentStatus, Role } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { FilesService } from '../files/files.service';
 import { PaymentReconnectionPolicy } from '../governance/payment-reconnection.policy';
 import { PromisesService } from '../promises/promises.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -45,6 +46,8 @@ describe('PaymentsService (Policy 1 prototype)', () => {
     invoice: { id: 'inv-1', clientId: 'client-1', status: InvoiceStatus.PENDING },
   };
 
+  const filesMock = { assertOwnedFile: jest.fn() };
+
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -54,6 +57,7 @@ describe('PaymentsService (Policy 1 prototype)', () => {
         { provide: EventEmitter2, useValue: emitterMock },
         { provide: PromisesService, useValue: promisesMock },
         { provide: AuditService, useValue: auditMock },
+        { provide: FilesService, useValue: filesMock },
       ],
     }).compile();
     service = moduleRef.get(PaymentsService);
@@ -68,12 +72,15 @@ describe('PaymentsService (Policy 1 prototype)', () => {
     });
     prismaMock.payment.create.mockImplementationOnce(({ data }) => Promise.resolve(data));
 
-    const payment = await service.register({
-      invoiceId: 'inv-1',
-      amount: 60000,
-      paymentMethod: PaymentMethod.NEQUI,
-      reference: 'NQ-123',
-    }, clientUser);
+    const payment = await service.register(
+      {
+        invoiceId: 'inv-1',
+        amount: 60000,
+        paymentMethod: PaymentMethod.NEQUI,
+        reference: 'NQ-123',
+      },
+      clientUser,
+    );
 
     expect(payment.status).toBe(PaymentStatus.PENDING_VALIDATION);
   });
@@ -106,8 +113,8 @@ describe('PaymentsService (Policy 1 prototype)', () => {
     prismaMock.invoice.findUnique.mockResolvedValueOnce(invoice);
     transactionMock.invoice.updateMany.mockResolvedValueOnce({ count: 1 });
     transactionMock.payment.create.mockResolvedValueOnce(payment);
-    prismaMock.$transaction.mockImplementationOnce((callback: (tx: typeof transactionMock) => unknown) =>
-      callback(transactionMock),
+    prismaMock.$transaction.mockImplementationOnce(
+      (callback: (tx: typeof transactionMock) => unknown) => callback(transactionMock),
     );
 
     await expect(service.registerCash('inv-1', cashier)).resolves.toEqual(payment);
@@ -169,9 +176,9 @@ describe('PaymentsService (Policy 1 prototype)', () => {
   });
 
   it('forbids validation by roles other than ADMIN/CASHIER', async () => {
-    await expect(
-      service.validate('pay-1', { approve: true }, technician),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.validate('pay-1', { approve: true }, technician)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it('rejects approving Nequi/transfer without an attached proof', async () => {
