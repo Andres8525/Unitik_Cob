@@ -230,6 +230,7 @@ model NetworkDevice {
   name           String
   deviceType     DeviceType
   ipAddress      String
+  ipPool         String? // client addressing pool in CIDR, e.g. 10.20.0.0/24
   apiPort        Int             @default(8728)
   apiUsername    String
   apiPasswordEnc String // AES-256-GCM encrypted, never plaintext
