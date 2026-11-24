@@ -6,13 +6,15 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseEnumPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Payment, Role } from '@prisma/client';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Payment, PaymentStatus, Role } from '@prisma/client';
 import { Request } from 'express';
 import { Audited } from '../../common/decorators/audited.decorator';
 import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -65,6 +67,16 @@ export class PaymentsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<Payment> {
     return this.paymentsService.registerCash(dto.invoiceId, user);
+  }
+
+  @Get()
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Gestión de Pagos: comprobantes Nequi/transferencia por estado' })
+  @ApiQuery({ name: 'status', enum: PaymentStatus, required: false })
+  listForReview(
+    @Query('status', new ParseEnumPipe(PaymentStatus, { optional: true })) status?: PaymentStatus,
+  ) {
+    return this.paymentsService.listForReview(status);
   }
 
   @Get(':id')

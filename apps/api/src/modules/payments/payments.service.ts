@@ -46,6 +46,41 @@ export class PaymentsService {
     private readonly filesService: FilesService,
   ) {}
 
+  /**
+   * Review queue for the admin "Gestión de Pagos" screen: digital payments
+   * reported by clients (Nequi/transfer) with invoice and client data.
+   */
+  listForReview(status: PaymentStatus = PaymentStatus.PENDING_VALIDATION) {
+    return this.prisma.payment.findMany({
+      where: {
+        status,
+        paymentMethod: { in: [PaymentMethod.NEQUI, PaymentMethod.BANK_TRANSFER] },
+      },
+      orderBy: { createdAt: status === PaymentStatus.PENDING_VALIDATION ? 'asc' : 'desc' },
+      take: 200,
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            period: true,
+            total: true,
+            status: true,
+            client: {
+              select: {
+                id: true,
+                clientCode: true,
+                user: {
+                  select: { firstName: true, lastName: true, documentId: true, email: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   /** Registers a payment. Nequi/transfer always start PENDING_VALIDATION. */
   async register(dto: RegisterPaymentDto, user: AuthenticatedUser): Promise<Payment> {
     if (dto.paymentMethod === PaymentMethod.CASH && user.role !== Role.CASHIER) {
