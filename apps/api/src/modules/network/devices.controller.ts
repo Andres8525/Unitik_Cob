@@ -1,15 +1,18 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Request } from 'express';
 import { Audited } from '../../common/decorators/audited.decorator';
@@ -18,6 +21,7 @@ import { NetworkRateLimitGuard } from '../../common/guards/network-rate-limit.gu
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 import { DevicesService, PublicDevice } from './devices.service';
+import { AvailableIpsResult } from './ip-pool.util';
 import { MikrotikService } from './mikrotik.service';
 
 /**
@@ -45,6 +49,16 @@ export class DevicesController {
   @ApiOperation({ summary: 'Consultar un dispositivo' })
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<PublicDevice> {
     return this.devicesService.findOne(id);
+  }
+
+  @Get(':id/available-ips')
+  @ApiOperation({ summary: 'Direcciones IP libres del pool del dispositivo (para el acta)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  availableIps(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('limit', new DefaultValuePipe(256), ParseIntPipe) limit: number,
+  ): Promise<AvailableIpsResult> {
+    return this.devicesService.availableIps(id, Math.min(Math.max(limit, 1), 1024));
   }
 
   @Post()

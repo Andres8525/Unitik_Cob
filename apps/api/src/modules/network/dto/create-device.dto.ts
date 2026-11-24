@@ -8,6 +8,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
 } from 'class-validator';
@@ -25,6 +26,16 @@ export class CreateDeviceDto {
   @ApiProperty({ example: '192.168.88.1' })
   @IsIP('4', { message: 'La dirección IP no es válida' })
   ipAddress!: string;
+
+  @ApiPropertyOptional({
+    example: '10.20.0.0/24',
+    description: 'Pool de direcciones de clientes (CIDR /20 a /30). Por defecto, la /24 del router',
+  })
+  @IsOptional()
+  @Matches(/^\d{1,3}(\.\d{1,3}){3}\/(2\d|30)$/, {
+    message: 'El pool debe tener formato CIDR, por ejemplo 10.20.0.0/24 (prefijo /20 a /30)',
+  })
+  ipPool?: string;
 
   @ApiPropertyOptional({ default: 8728, description: 'Puerto RouterOS API' })
   @IsOptional()
