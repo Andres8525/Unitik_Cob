@@ -10,6 +10,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CashierModule } from './modules/cashier/cashier.module';
 import { ClientsModule } from './modules/clients/clients.module';
+import { FilesModule } from './modules/files/files.module';
 import { GovernanceModule } from './modules/governance/governance.module';
 import { HealthModule } from './modules/health/health.module';
 import { InstallationsModule } from './modules/installations/installations.module';
@@ -47,6 +48,7 @@ import { QueuesModule } from './queues/queues.module';
     AuditModule, // interceptor global de trazabilidad
     QueuesModule, // BullMQ (política de continuidad)
     SystemConfigModule,
+    FilesModule,
     AuthModule,
     UsersModule,
     ClientsModule,
