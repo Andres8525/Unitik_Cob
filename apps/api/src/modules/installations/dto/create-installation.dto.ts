@@ -85,6 +85,20 @@ export class CreateInstallationDto {
   @IsDateString()
   installationDate!: string;
 
+  @ApiPropertyOptional({
+    description: 'Id del archivo (POST /files, INSTALLATION_SITE) con la foto de la instalación',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'La foto de la instalación no es válida' })
+  sitePhotoId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Id del archivo (POST /files, INSTALLATION_EQUIPMENT) con la foto del equipo',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'La foto del equipo no es válida' })
+  equipmentPhotoId?: string;
+
   @ApiPropertyOptional({ description: 'URL de la firma digital del cliente' })
   @IsOptional()
   @IsUrl()

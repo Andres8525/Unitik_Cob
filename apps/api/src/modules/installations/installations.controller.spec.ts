@@ -2,6 +2,7 @@ import { ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ClientStatus, ServiceType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FilesService } from '../files/files.service';
 import { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { InstallationsController } from './installations.controller';
 import { INSTALLATION_EXTRA_COSTS_APPLIED_EVENT } from './installation-extra-costs-applied.event';
@@ -19,6 +20,7 @@ describe('InstallationsController', () => {
     $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) => callback(tx)),
   };
   const eventEmitterMock = { emit: jest.fn() };
+  const filesServiceMock = { assertOwnedFile: jest.fn() };
   const dto = {
     clientId: 'client-1',
     deviceId: 'device-1',
@@ -36,6 +38,7 @@ describe('InstallationsController', () => {
     controller = new InstallationsController(
       prismaMock as unknown as PrismaService,
       eventEmitterMock as unknown as EventEmitter2,
+      filesServiceMock as unknown as FilesService,
     );
     jest.clearAllMocks();
     tx.client.findUnique.mockResolvedValue({ id: 'client-1', status: ClientStatus.SUSPENDED });

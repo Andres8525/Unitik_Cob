@@ -10,11 +10,12 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ClientStatus, InstallationRecord, Prisma, Role } from '@prisma/client';
+import { ClientStatus, FilePurpose, InstallationRecord, Prisma, Role } from '@prisma/client';
 import { Audited } from '../../common/decorators/audited.decorator';
 import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FilesService } from '../files/files.service';
 import { CreateInstallationDto } from './dto/create-installation.dto';
 import {
   INSTALLATION_EXTRA_COSTS_APPLIED_EVENT,
@@ -45,6 +46,7 @@ export class InstallationsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly filesService: FilesService,
   ) {}
 
   @Post()
@@ -68,6 +70,16 @@ export class InstallationsController {
   }> {
     const macAddress = normalizeMac(dto.macAddress);
     const equipmentSerial = dto.equipmentSerial.trim().toUpperCase();
+    if (dto.sitePhotoId) {
+      await this.filesService.assertOwnedFile(dto.sitePhotoId, FilePurpose.INSTALLATION_SITE, user);
+    }
+    if (dto.equipmentPhotoId) {
+      await this.filesService.assertOwnedFile(
+        dto.equipmentPhotoId,
+        FilePurpose.INSTALLATION_EQUIPMENT,
+        user,
+      );
+    }
     const result = await this.prisma
       .$transaction(async (tx) => {
         const client = await tx.client.findUnique({ where: { id: dto.clientId } });
@@ -119,6 +131,8 @@ export class InstallationsController {
             macAddress,
             ipAddress: dto.ipAddress,
             equipmentSerial,
+            sitePhotoId: dto.sitePhotoId,
+            equipmentPhotoId: dto.equipmentPhotoId,
           },
         });
 
