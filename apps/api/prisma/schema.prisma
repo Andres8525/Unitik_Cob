@@ -179,6 +179,7 @@ model Payment {
   paymentMethod PaymentMethod
   reference     String? // Nequi/transfer receipt number
   proofUrl      String? // uploaded proof URL
+  proofFileId   String? // StoredFile with the client's proof image/PDF
   validatedBy   String? // userId of validator
   validatedAt   DateTime?
   status        PaymentStatus @default(PENDING_VALIDATION)
