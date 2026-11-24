@@ -9,6 +9,7 @@ import {
   type ReportePagoFormValues,
 } from '../../schemas/reportePago';
 import { usePagosStore } from '../../stores/pagos';
+import DatosTransferencia from './DatosTransferencia';
 
 interface InvoiceOption {
   id: string;
@@ -43,6 +44,7 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
     defaultValues: { invoiceId: '', paymentMethod: 'NEQUI', reference: '' },
   });
   const receipt = watch('file');
+  const selectedMethod = watch('paymentMethod');
 
   const submit = async (values: ReportePagoFormValues) => {
     setSubmitError(null);
@@ -119,6 +121,8 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
           <span className="mt-1 block text-xs text-red-600">{errors.paymentMethod.message}</span>
         )}
       </label>
+
+      <DatosTransferencia method={selectedMethod} />
 
       <label className="block text-sm font-medium text-slate-700">
         Número de referencia / Nequi
@@ -205,8 +209,8 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
             )}
             <p className="mt-1 text-xs text-slate-500">
               El archivo se valida en este formulario; en producción debe subirse al backend con
-              almacenamiento seguro.
-              {' '}{Math.round(MAX_PAYMENT_RECEIPT_SIZE / (1024 * 1024))} MB máximo.
+              almacenamiento seguro. {Math.round(MAX_PAYMENT_RECEIPT_SIZE / (1024 * 1024))} MB
+              máximo.
             </p>
           </div>
         )}

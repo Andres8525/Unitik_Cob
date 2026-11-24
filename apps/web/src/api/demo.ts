@@ -119,9 +119,30 @@ const DEFAULT_DEMO_PLANS: DemoPlan[] = [
   },
 ];
 
+/** Fictitious collection accounts used only by the demo. */
+const DEFAULT_DEMO_ACCOUNTS = [
+  {
+    method: 'NEQUI',
+    bank: 'Nequi',
+    accountNumber: '300 000 0000',
+    holderName: 'UNITIK Internet (cuenta demo)',
+    instructions: 'Escribe tu código de cliente en el mensaje del pago.',
+  },
+  {
+    method: 'BANK_TRANSFER',
+    bank: 'Banco Demo',
+    accountType: 'AHORROS',
+    accountNumber: '000-000000-00',
+    holderName: 'UNITIK Internet Sin Límite S.A.S. (cuenta demo)',
+    holderDocument: 'NIT 000.000.000-0',
+    instructions: 'Usa tu código de cliente como referencia.',
+  },
+];
+
 interface DemoState {
   /** Optional so browsers holding an older demo snapshot keep working. */
   plans?: DemoPlan[];
+  paymentAccounts?: Array<Record<string, unknown>>;
   clients: DemoClient[];
   invoices: DemoInvoice[];
   tickets: DemoTicket[];
@@ -800,6 +821,8 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     });
     writeState(state);
     result = { success: true };
+  } else if (route === '/payments/accounts' && method === 'GET') {
+    result = state.paymentAccounts ?? DEFAULT_DEMO_ACCOUNTS;
   } else if (route === '/payments' && method === 'POST') {
     const invoice = state.invoices.find((item) => item.id === body.invoiceId);
     if (!invoice || invoice.clientId !== me.id) throw new Error('Selecciona una factura demo vigente.');
