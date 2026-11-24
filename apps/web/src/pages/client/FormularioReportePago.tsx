@@ -4,7 +4,6 @@ import { Controller, useForm } from 'react-hook-form';
 import { CheckCircle2, FileText, Upload, X } from 'lucide-react';
 import {
   ACCEPTED_PAYMENT_RECEIPT_TYPES,
-  MAX_PAYMENT_RECEIPT_SIZE,
   reportePagoSchema,
   type ReportePagoFormValues,
 } from '../../schemas/reportePago';
@@ -75,8 +74,8 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
           <div>
             <h3 className="font-bold">¡Envío exitoso!</h3>
             <p className="mt-1 text-sm leading-relaxed">
-              El comprobante fue recibido correctamente. Radicado {radicado} generado para su
-              validación inmediata.
+              El comprobante fue recibido correctamente. Radicado {radicado} generado; el
+              administrador lo validará en breve.
             </p>
             <p className="mt-2 text-xs text-emerald-800">
               El pago queda pendiente de validación. Este reporte no reactiva automáticamente el
@@ -208,9 +207,8 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
               <span className="mt-1 block text-xs text-red-600">{fieldState.error.message}</span>
             )}
             <p className="mt-1 text-xs text-slate-500">
-              El archivo se valida en este formulario; en producción debe subirse al backend con
-              almacenamiento seguro. {Math.round(MAX_PAYMENT_RECEIPT_SIZE / (1024 * 1024))} MB
-              máximo.
+              El comprobante se envía de forma segura y el equipo de UNITIK lo revisa en Gestión de
+              Pagos.
             </p>
           </div>
         )}

@@ -348,7 +348,12 @@ function writeState(state: DemoState): void {
 }
 
 export function resetDemoData(): void {
-  for (const key of ['unitik-demo-data', 'unitik-demo-plans', 'unitik-demo-billing', 'unitik-demo-files']) {
+  for (const key of [
+    'unitik-demo-data',
+    'unitik-demo-plans',
+    'unitik-demo-billing',
+    'unitik-demo-files',
+  ]) {
     window.localStorage.removeItem(key);
   }
   for (const key of ['unitik-auth', 'unitik-client-portal', 'unitik-notificaciones']) {
@@ -445,7 +450,7 @@ function reportCsv(state: DemoState, report: string): string {
   if (report === '/reports/collections.csv') {
     return [
       'fecha;factura;cliente;codigo;metodo;autoValidado;monto',
-      ...state.payments.map((payment) => {
+      ...validatedPayments(state).map((payment) => {
         const invoice = state.invoices.find((item) => item.id === payment.invoiceId);
         const client = invoice && findClient(state, invoice.clientId);
         return [
@@ -579,9 +584,8 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     result = clientProfile(client);
   } else if (route === '/plans' && method === 'GET') {
     const plans = (state.plans ??= DEFAULT_DEMO_PLANS.map((plan) => ({ ...plan })));
-    result = url.searchParams.get('onlyActive') === 'true'
-      ? plans.filter((plan) => plan.isActive)
-      : plans;
+    result =
+      url.searchParams.get('onlyActive') === 'true' ? plans.filter((plan) => plan.isActive) : plans;
   } else if (route === '/plans' && method === 'POST') {
     const plans = (state.plans ??= DEFAULT_DEMO_PLANS.map((plan) => ({ ...plan })));
     const plan: DemoPlan = {
@@ -603,7 +607,11 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     const plans = (state.plans ??= DEFAULT_DEMO_PLANS.map((plan) => ({ ...plan })));
     const plan = plans.find((item) => item.id === route.split('/').pop());
     if (!plan) throw new Error('No se encontró el plan de demostración.');
-    Object.assign(plan, body, body.monthlyPrice === undefined ? {} : { monthlyPrice: String(body.monthlyPrice) });
+    Object.assign(
+      plan,
+      body,
+      body.monthlyPrice === undefined ? {} : { monthlyPrice: String(body.monthlyPrice) },
+    );
     writeState(state);
     result = plan;
   } else if (route === '/subscriptions/my' && method === 'GET') {
@@ -654,7 +662,10 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     result = {
       activeClients: state.clients.filter((client) => client.status === 'ACTIVE').length,
       suspendedClients: state.clients.filter((client) => client.status === 'SUSPENDED').length,
-      monthRevenue: state.payments.reduce((sum, payment) => sum + Number(payment.amount), 0),
+      monthRevenue: validatedPayments(state).reduce(
+        (sum, payment) => sum + Number(payment.amount),
+        0,
+      ),
       overdueClients: new Set(
         state.invoices
           .filter((invoice) => invoice.status === 'OVERDUE')
@@ -669,7 +680,7 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
       devicesTotal: 2,
     };
   } else if (route === '/audit' && method === 'GET') {
-    result = state.payments
+    result = validatedPayments(state)
       .slice(-15)
       .reverse()
       .map((payment, index) => ({
@@ -825,18 +836,26 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     result = state.paymentAccounts ?? DEFAULT_DEMO_ACCOUNTS;
   } else if (route === '/payments' && method === 'POST') {
     const invoice = state.invoices.find((item) => item.id === body.invoiceId);
-    if (!invoice || invoice.clientId !== me.id) throw new Error('Selecciona una factura demo vigente.');
+    if (!invoice || invoice.clientId !== me.id)
+      throw new Error('Selecciona una factura demo vigente.');
     if (invoice.status === 'PAID') throw new Error('La factura ya aparece pagada en la demo.');
-    // Digital reports stay pending until staff validates them (the invoice is not settled).
-    result = {
+    // Digital reports stay pending until the administrator validates them (the invoice is not settled).
+    const proofFileId = typeof body.proofFileId === 'string' ? body.proofFileId : null;
+    const payment = {
       id: `demo-payment-${crypto.randomUUID()}`,
       invoiceId: invoice.id,
       amount: Number(body.amount ?? invoice.total),
       paymentMethod: body.paymentMethod,
       reference: body.reference ?? null,
+      proofFileId,
+      proofUrl: proofFileId ? `/api/files/${proofFileId}` : null,
       status: 'PENDING_VALIDATION',
+      paidAt: now,
       createdAt: now,
     };
+    state.payments.push(payment);
+    writeState(state);
+    result = payment;
   } else if (route === '/payments/cash' && method === 'POST') {
     result = registerPayment(state, String(body.invoiceId ?? ''));
   } else if (route === '/cashier/payments' && method === 'POST') {
@@ -862,16 +881,18 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
       message: `Modo demo: no se envían correos reales; el recibo iría a ${client.user.email}.`,
     };
   } else if (route === '/cashier/daily-close' && method === 'GET') {
-    const payments = state.payments.map((payment) => {
-      const invoice = state.invoices.find((item) => item.id === payment.invoiceId);
-      const client = invoice && findClient(state, invoice.clientId);
-      return {
-        receiptTime: String(payment.createdAt),
-        invoiceNumber: invoice?.invoiceNumber ?? '',
-        clientName: client ? `${client.user.firstName} ${client.user.lastName}` : '',
-        amount: Number(payment.amount),
-      };
-    });
+    const payments = state.payments
+      .filter((payment) => payment.paymentMethod === 'CASH')
+      .map((payment) => {
+        const invoice = state.invoices.find((item) => item.id === payment.invoiceId);
+        const client = invoice && findClient(state, invoice.clientId);
+        return {
+          receiptTime: String(payment.createdAt),
+          invoiceNumber: invoice?.invoiceNumber ?? '',
+          clientName: client ? `${client.user.firstName} ${client.user.lastName}` : '',
+          amount: Number(payment.amount),
+        };
+      });
     result = {
       date: now.slice(0, 10),
       totalReceived: payments.reduce((sum, payment) => sum + payment.amount, 0),
@@ -898,6 +919,11 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
   }
 
   return result as T;
+}
+
+/** Payments that count as collected money (cash or digital already validated). */
+function validatedPayments(state: DemoState): Array<Record<string, unknown>> {
+  return state.payments.filter((payment) => payment.status === 'VALIDATED');
 }
 
 function registerPayment(state: DemoState, invoiceId: string): Record<string, unknown> {

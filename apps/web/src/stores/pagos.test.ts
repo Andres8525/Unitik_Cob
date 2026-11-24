@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiMock = vi.hoisted(() => vi.fn());
+const uploadMock = vi.hoisted(() => vi.fn());
 vi.mock('../api/http', () => ({ api: apiMock }));
+vi.mock('../api/files', () => ({ uploadFile: uploadMock }));
 
 import { radicadoFromPaymentId, usePagosStore } from './pagos';
 
 describe('usePagosStore', () => {
   beforeEach(() => {
     apiMock.mockReset();
+    uploadMock.mockReset();
+    uploadMock.mockResolvedValue({ id: 'proof-file-1', url: '/api/files/proof-file-1' });
     usePagosStore.setState({ reportes: [] });
   });
 
@@ -32,8 +36,10 @@ describe('usePagosStore', () => {
         amount: 100000,
         paymentMethod: 'NEQUI',
         reference: 'NQ123456',
+        proofFileId: 'proof-file-1',
       }),
     });
+    expect(uploadMock).toHaveBeenCalledWith(expect.any(File), 'PAYMENT_PROOF');
     expect(radicado).toBe('#RAD-3F2A9C10');
     expect(usePagosStore.getState().reportes).toEqual([
       expect.objectContaining({

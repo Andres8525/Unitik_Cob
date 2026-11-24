@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { uploadFile } from '../api/files';
 import { api } from '../api/http';
 
 export type MetodoPagoDigital = 'NEQUI' | 'BANK_TRANSFER';
@@ -39,7 +40,8 @@ export const usePagosStore = create<PagosState>((set) => ({
   reportes: [],
   enviarComprobantePago: async (datos) => {
     const { file, ...paymentData } = datos;
-    // The receipt file stays on the device: the API has no upload endpoint yet (proofUrl expects a URL).
+    // The proof is stored first; the payment references it so the administrator can review it.
+    const proof = await uploadFile(file, 'PAYMENT_PROOF');
     const payment = await api<RegisteredPayment>('/payments', {
       method: 'POST',
       body: JSON.stringify({
@@ -47,6 +49,7 @@ export const usePagosStore = create<PagosState>((set) => ({
         amount: Math.round(paymentData.amount),
         paymentMethod: paymentData.paymentMethod,
         reference: paymentData.reference,
+        proofFileId: proof.id,
       }),
     });
     const radicado = radicadoFromPaymentId(payment.id);
