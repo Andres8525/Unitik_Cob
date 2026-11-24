@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
 } from '@nestjs/common';
@@ -23,6 +24,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RegisterCashPaymentDto } from './dto/register-cash-payment.dto';
 import { RegisterPaymentDto } from './dto/register-payment.dto';
 import { ValidatePaymentDto } from './dto/validate-payment.dto';
+import { PaymentAccountDto, UpdatePaymentAccountsDto } from './dto/payment-accounts.dto';
+import { PaymentAccountsService } from './payment-accounts.service';
 import { PaymentsService } from './payments.service';
 import { WompiEvent, WompiService } from './wompi.service';
 
@@ -33,6 +36,7 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly wompiService: WompiService,
+    private readonly paymentAccountsService: PaymentAccountsService,
   ) {}
 
   @Public()
@@ -67,6 +71,26 @@ export class PaymentsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<Payment> {
     return this.paymentsService.registerCash(dto.invoiceId, user);
+  }
+
+  @Get('accounts')
+  @ApiOperation({ summary: 'Cuentas de recaudo para transferencias y Nequi (cualquier usuario)' })
+  listAccounts(): Promise<PaymentAccountDto[]> {
+    return this.paymentAccountsService.list();
+  }
+
+  @Put('accounts')
+  @Roles(Role.ADMIN)
+  @Audited({ entity: 'SystemConfig', action: 'UPDATE' })
+  @ApiOperation({ summary: 'Actualizar las cuentas de recaudo (solo ADMIN, auditado)' })
+  async replaceAccounts(
+    @Body() dto: UpdatePaymentAccountsDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() request: Request & { auditOldValues?: unknown },
+  ): Promise<PaymentAccountDto[]> {
+    const { accounts, previous } = await this.paymentAccountsService.replace(dto.accounts, user.id);
+    request.auditOldValues = previous;
+    return accounts;
   }
 
   @Get()
