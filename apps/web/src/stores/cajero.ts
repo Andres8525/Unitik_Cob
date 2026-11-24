@@ -10,6 +10,7 @@ export interface ClienteCajero {
     documentId: string;
     firstName: string;
     lastName: string;
+    email?: string;
   };
 }
 
@@ -28,6 +29,21 @@ export interface PagoEfectivoRegistrado {
   amount: number | string;
   paymentMethod: 'CASH';
   status: 'VALIDATED';
+  paidAt?: string;
+  createdAt?: string;
+}
+
+/** Data shown on the printable receipt right after a cash payment. */
+export interface ReciboEfectivo {
+  paymentId: string;
+  paidAt: string;
+  amount: number;
+  invoiceNumber: string;
+  period: string;
+  clientName: string;
+  clientDocument: string;
+  clientCode: string;
+  clientEmail: string | null;
 }
 
 interface CajeroState {
@@ -41,6 +57,8 @@ interface CajeroState {
   registeringInvoiceId: string | null;
   error: string | null;
   successMessage: string | null;
+  ultimoRecibo: ReciboEfectivo | null;
+  cerrarRecibo: () => void;
   buscarCliente: (query: string) => Promise<void>;
   seleccionarCliente: (client: ClienteCajero) => Promise<void>;
   registrarPagoEfectivo: (idFactura: string) => Promise<PagoEfectivoRegistrado>;
@@ -60,6 +78,9 @@ export const useCajeroStore = create<CajeroState>((set, get) => ({
   registeringInvoiceId: null,
   error: null,
   successMessage: null,
+  ultimoRecibo: null,
+
+  cerrarRecibo: () => set({ ultimoRecibo: null }),
 
   buscarCliente: async (query) => {
     const term = query.trim();
@@ -121,6 +142,7 @@ export const useCajeroStore = create<CajeroState>((set, get) => ({
       registeringInvoiceId: idFactura,
       error: null,
       successMessage: null,
+      ultimoRecibo: null,
     });
     try {
       // The backend settles the CASH payment, emits payment.validated, and enqueues the HU-09 reconnection.
@@ -128,11 +150,26 @@ export const useCajeroStore = create<CajeroState>((set, get) => ({
         method: 'POST',
         body: JSON.stringify({ invoiceId: idFactura }),
       });
+      const { clienteBuscado, facturasPendientes } = get();
+      const invoice = facturasPendientes.find((item) => item.id === idFactura);
       set((state) => ({
-        facturasPendientes: state.facturasPendientes.filter((invoice) => invoice.id !== idFactura),
+        facturasPendientes: state.facturasPendientes.filter((item) => item.id !== idFactura),
         isRegistering: false,
         registeringInvoiceId: null,
-        successMessage: `Pago registrado. Reconexión del servicio en proceso. Recibo: ${payment.id}`,
+        successMessage: 'Pago registrado. La reconexión del servicio está en proceso.',
+        ultimoRecibo: {
+          paymentId: payment.id,
+          paidAt: payment.paidAt ?? payment.createdAt ?? new Date().toISOString(),
+          amount: Number(payment.amount),
+          invoiceNumber: invoice?.invoiceNumber ?? '',
+          period: invoice?.period ?? '',
+          clientName: clienteBuscado
+            ? `${clienteBuscado.user.firstName} ${clienteBuscado.user.lastName}`
+            : '',
+          clientDocument: clienteBuscado?.user.documentId ?? '',
+          clientCode: clienteBuscado?.clientCode ?? '',
+          clientEmail: clienteBuscado?.user.email ?? null,
+        },
       }));
       return payment;
     } catch (error) {

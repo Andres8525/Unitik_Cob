@@ -56,8 +56,14 @@ describe('useCajeroStore', () => {
       body: JSON.stringify({ invoiceId: 'invoice-1' }),
     });
     expect(useCajeroStore.getState().facturasPendientes).toHaveLength(0);
-    expect(useCajeroStore.getState().successMessage).toContain(
-      'Pago registrado. Reconexión del servicio en proceso.',
+    expect(useCajeroStore.getState().successMessage).toBe(
+      'Pago registrado. La reconexión del servicio está en proceso.',
     );
+    expect(useCajeroStore.getState().ultimoRecibo).toMatchObject({
+      paymentId: 'payment-1',
+      amount: 65000,
+      invoiceNumber: 'F-1',
+      period: '2026-11',
+    });
   });
 });

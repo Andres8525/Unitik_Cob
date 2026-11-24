@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import DashboardShell from '../../components/DashboardShell';
 import { CASHIER_NAV_ITEMS } from '../../components/navigation';
+import { useAuthStore } from '../../stores/auth';
+import ReciboPago from './ReciboPago';
 import {
   useCajeroStore,
   type ClienteCajero,
@@ -43,13 +45,20 @@ function FacturaRow({
               overdue ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
             }`}
           >
-            {overdue ? 'Vencida' : invoice.status === 'PROMISE_TO_PAY' ? 'Promesa de pago' : 'Pendiente'}
+            {overdue
+              ? 'Vencida'
+              : invoice.status === 'PROMISE_TO_PAY'
+                ? 'Promesa de pago'
+                : 'Pendiente'}
           </span>
         </div>
         <p className="mt-1 text-sm text-slate-500">
-          Periodo {invoice.period} · Vence {new Date(`${invoice.dueDate}T00:00:00`).toLocaleDateString('es-CO')}
+          Periodo {invoice.period} · Vence{' '}
+          {new Date(`${invoice.dueDate}T00:00:00`).toLocaleDateString('es-CO')}
         </p>
-        <p className="mt-2 text-lg font-bold text-slate-900">{money.format(Number(invoice.total))}</p>
+        <p className="mt-2 text-lg font-bold text-slate-900">
+          {money.format(Number(invoice.total))}
+        </p>
       </div>
       <button
         className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-11"
@@ -57,7 +66,11 @@ function FacturaRow({
         onClick={() => onPay(invoice.id)}
         type="button"
       >
-        {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
+        {busy ? (
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+        ) : (
+          <Banknote className="h-4 w-4" />
+        )}
         {busy ? 'Registrando…' : 'Registrar Pago (Efectivo)'}
       </button>
     </article>
@@ -78,6 +91,9 @@ export default function PanelCajero() {
   const buscarCliente = useCajeroStore((state) => state.buscarCliente);
   const seleccionarCliente = useCajeroStore((state) => state.seleccionarCliente);
   const registrarPagoEfectivo = useCajeroStore((state) => state.registrarPagoEfectivo);
+  const ultimoRecibo = useCajeroStore((state) => state.ultimoRecibo);
+  const cerrarRecibo = useCajeroStore((state) => state.cerrarRecibo);
+  const cashier = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const {
     register,
@@ -96,16 +112,28 @@ export default function PanelCajero() {
   };
 
   return (
-    <DashboardShell title="Cajero" subtitle="Búsqueda de cliente y recepción de pagos en efectivo" navItems={CASHIER_NAV_ITEMS}>
+    <DashboardShell
+      title="Cajero"
+      subtitle="Búsqueda de cliente y recepción de pagos en efectivo"
+      navItems={CASHIER_NAV_ITEMS}
+    >
       <section className="mx-auto w-full max-w-4xl space-y-5">
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-7">
           <div className="mb-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-unitik-600">Recaudo presencial</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-unitik-600">
+              Recaudo presencial
+            </p>
             <h2 className="mt-2 text-xl font-bold text-slate-900 sm:text-2xl">Buscar cliente</h2>
-            <p className="mt-1 text-sm text-slate-500">Busca por nombre, cédula o código de contrato.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Busca por nombre, cédula o código de contrato.
+            </p>
           </div>
 
-          <form className="flex flex-col gap-3 sm:flex-row" noValidate onSubmit={handleSubmit(onSearch)}>
+          <form
+            className="flex flex-col gap-3 sm:flex-row"
+            noValidate
+            onSubmit={handleSubmit(onSearch)}
+          >
             <label className="relative block flex-1">
               <span className="sr-only">Nombre, cédula o código de contrato</span>
               <Search
@@ -124,27 +152,48 @@ export default function PanelCajero() {
               disabled={isSearching}
               type="submit"
             >
-              {isSearching ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              {isSearching ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
               {isSearching ? 'Buscando…' : 'Buscar'}
             </button>
           </form>
           {formErrors.query && (
-            <p className="mt-2 text-sm text-red-600" role="alert">{formErrors.query.message}</p>
+            <p className="mt-2 text-sm text-red-600" role="alert">
+              {formErrors.query.message}
+            </p>
           )}
         </div>
 
         {error && (
-          <div className="flex gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+          <div
+            className="flex gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+            role="alert"
+          >
             <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
             <p>{error}</p>
           </div>
         )}
 
         {successMessage && (
-          <div className="flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status" aria-live="polite">
+          <div
+            className="flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+            role="status"
+            aria-live="polite"
+          >
             <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
             <p className="font-medium">{successMessage}</p>
           </div>
+        )}
+
+        {ultimoRecibo && (
+          <ReciboPago
+            recibo={ultimoRecibo}
+            cashierName={cashier ? `${cashier.firstName} ${cashier.lastName}` : 'Cajero'}
+            onClose={cerrarRecibo}
+          />
         )}
 
         {clientesEncontrados.length > 1 && !clienteBuscado && (
@@ -159,8 +208,12 @@ export default function PanelCajero() {
         )}
 
         {hasSearched && clientesEncontrados.length === 0 && !clienteBuscado && !isSearching && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm" role="status">
-            No encontramos clientes con esos datos. Verifica el nombre, la cédula o el código de contrato.
+          <div
+            className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm"
+            role="status"
+          >
+            No encontramos clientes con esos datos. Verifica el nombre, la cédula o el código de
+            contrato.
           </div>
         )}
 
