@@ -29,4 +29,23 @@ describe('actaInstalacionSchema', () => {
       expect(actaInstalacionSchema.safeParse({ ...validActa, ipAddress }).success).toBe(false);
     },
   );
+  it('upper-cases the serial and accepts MACs written with dashes', () => {
+    const parsed = actaInstalacionSchema.parse({ ...validActa, macAddress: 'aa-bb-cc-dd-ee-ff' });
+    expect(parsed.macAddress).toBe('AA:BB:CC:DD:EE:FF');
+    expect(parsed.equipmentSerial).toBe('HG8145V5-0001');
+  });
+
+  it.each(['', 'ab', 'SERIAL CON ESPACIOS', 'x'.repeat(61)])(
+    'rejects invalid serial "%s"',
+    (equipmentSerial) => {
+      expect(actaInstalacionSchema.safeParse({ ...validActa, equipmentSerial }).success).toBe(
+        false,
+      );
+    },
+  );
+
+  it('requires choosing an available IP', () => {
+    const result = actaInstalacionSchema.safeParse({ ...validActa, ipAddress: '' });
+    expect(result.success).toBe(false);
+  });
 });
