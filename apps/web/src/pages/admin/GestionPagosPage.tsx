@@ -6,6 +6,7 @@ import { api } from '../../api/http';
 import DashboardShell from '../../components/DashboardShell';
 import ProofViewer from '../../components/ProofViewer';
 import { ADMIN_NAV_ITEMS } from '../../components/navigation';
+import CuentasRecaudoEditor from './CuentasRecaudoEditor';
 
 type ReviewStatus = 'PENDING_VALIDATION' | 'VALIDATED' | 'REJECTED';
 
@@ -274,6 +275,8 @@ export default function GestionPagosPage() {
           <PaymentCard key={payment.id} payment={payment} />
         ))}
       </div>
+
+      <CuentasRecaudoEditor />
     </DashboardShell>
   );
 }

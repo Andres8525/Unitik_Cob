@@ -883,6 +883,11 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     result = payment;
   } else if (route === '/payments/accounts' && method === 'GET') {
     result = state.paymentAccounts ?? DEFAULT_DEMO_ACCOUNTS;
+  } else if (route === '/payments/accounts' && method === 'PUT') {
+    const accounts = Array.isArray(body.accounts) ? body.accounts : [];
+    state.paymentAccounts = accounts as Array<Record<string, unknown>>;
+    writeState(state);
+    result = state.paymentAccounts;
   } else if (route === '/payments' && method === 'POST') {
     const invoice = state.invoices.find((item) => item.id === body.invoiceId);
     if (!invoice || invoice.clientId !== me.id)
