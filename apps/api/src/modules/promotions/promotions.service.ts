@@ -24,6 +24,22 @@ export class PromotionsService {
     return promotions.map(toView);
   }
 
+  /** Promotions visible to clients right now: active and inside their validity window. */
+  async findActive(now = new Date()): Promise<PromotionView[]> {
+    const promotions = await this.prisma.promotion.findMany({
+      where: {
+        isActive: true,
+        AND: [
+          { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+          { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+    return promotions.map(toView);
+  }
+
   async create(dto: CreatePromotionDto, user: AuthenticatedUser): Promise<PromotionView> {
     this.assertWindow(dto.startsAt, dto.endsAt);
     if (dto.imageFileId) {

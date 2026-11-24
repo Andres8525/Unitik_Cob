@@ -31,6 +31,12 @@ export class PromotionsController {
     return this.promotionsService.findAll();
   }
 
+  @Get('active')
+  @ApiOperation({ summary: 'Promociones vigentes para el portal del cliente (cualquier usuario)' })
+  findActive(): Promise<PromotionView[]> {
+    return this.promotionsService.findActive();
+  }
+
   @Post()
   @Roles(Role.ADMIN)
   @Audited({ entity: 'Promotion' })
