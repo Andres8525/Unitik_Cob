@@ -22,6 +22,7 @@ import { TicketsModule } from './modules/tickets/tickets.module';
 import { NetworkModule } from './modules/network/network.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PlansModule } from './modules/plans/plans.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
 import { PromisesModule } from './modules/promises/promises.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { SystemConfigModule } from './modules/system-config/system-config.module';
@@ -49,6 +50,7 @@ import { QueuesModule } from './queues/queues.module';
     QueuesModule, // BullMQ (política de continuidad)
     SystemConfigModule,
     FilesModule,
+    PromotionsModule,
     AuthModule,
     UsersModule,
     ClientsModule,
