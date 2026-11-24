@@ -826,6 +826,18 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
       clientName: client ? `${client.user.firstName} ${client.user.lastName}` : '',
       payment: { amount: String(payment.amount) },
     };
+  } else if (/^\/cashier\/receipts\/[^/]+\/email$/.test(route) && method === 'POST') {
+    const paymentId = route.split('/')[3];
+    const payment = state.payments.find((item) => item.id === paymentId);
+    const invoice = payment && state.invoices.find((item) => item.id === payment.invoiceId);
+    const client = invoice && findClient(state, invoice.clientId);
+    if (!client) throw new Error('No se encontró el pago de demostración.');
+    result = {
+      receiptNumber: paymentId,
+      sentTo: client.user.email,
+      delivered: false,
+      message: `Modo demo: no se envían correos reales; el recibo iría a ${client.user.email}.`,
+    };
   } else if (route === '/cashier/daily-close' && method === 'GET') {
     const payments = state.payments.map((payment) => {
       const invoice = state.invoices.find((item) => item.id === payment.invoiceId);

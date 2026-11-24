@@ -6,7 +6,9 @@ import { z } from 'zod';
 import DashboardShell from '../../components/DashboardShell';
 import { CASHIER_NAV_ITEMS } from '../../components/navigation';
 import { useAuthStore } from '../../stores/auth';
+import ReciboAcciones from './ReciboAcciones';
 import ReciboPago from './ReciboPago';
+import { receiptNumberFor } from './receiptNumber';
 import {
   useCajeroStore,
   type ClienteCajero,
@@ -193,6 +195,13 @@ export default function PanelCajero() {
             recibo={ultimoRecibo}
             cashierName={cashier ? `${cashier.firstName} ${cashier.lastName}` : 'Cajero'}
             onClose={cerrarRecibo}
+            actions={
+              <ReciboAcciones
+                paymentId={ultimoRecibo.paymentId}
+                receiptNumber={receiptNumberFor(ultimoRecibo.paymentId, ultimoRecibo.paidAt)}
+                clientEmail={ultimoRecibo.clientEmail}
+              />
+            }
           />
         )}
 
