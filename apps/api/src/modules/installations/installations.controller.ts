@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ClientStatus, InstallationRecord, Role } from '@prisma/client';
+import { ClientStatus, InstallationRecord, Prisma, Role } from '@prisma/client';
 import { Audited } from '../../common/decorators/audited.decorator';
 import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -20,6 +20,18 @@ import {
   INSTALLATION_EXTRA_COSTS_APPLIED_EVENT,
   InstallationExtraCostsAppliedEvent,
 } from './installation-extra-costs-applied.event';
+
+/** Canonical MAC form used for storage and uniqueness (AA:BB:CC:DD:EE:FF). */
+export function normalizeMac(mac: string): string {
+  return mac.trim().toUpperCase().replace(/-/g, ':');
+}
+
+function isUniqueViolation(error: unknown, field: string): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002')
+    return false;
+  const target = error.meta?.target;
+  return Array.isArray(target) ? target.includes(field) : String(target ?? '').includes(field);
+}
 
 /**
  * Installation records (acta del técnico con firma digital del cliente).
@@ -53,85 +65,124 @@ export class InstallationsController {
     };
     clientStatus: ClientStatus;
   }> {
-    const result = await this.prisma.$transaction(async (tx) => {
-      const client = await tx.client.findUnique({ where: { id: dto.clientId } });
-      if (!client) throw new NotFoundException('Cliente no encontrado');
-      if (client.status === ClientStatus.CUT || client.status === ClientStatus.CANCELLED) {
-        throw new BadRequestException('No se puede instalar un servicio para un cliente cortado o cancelado');
-      }
+    const macAddress = normalizeMac(dto.macAddress);
+    const result = await this.prisma
+      .$transaction(async (tx) => {
+        const client = await tx.client.findUnique({ where: { id: dto.clientId } });
+        if (!client) throw new NotFoundException('Cliente no encontrado');
+        if (client.status === ClientStatus.CUT || client.status === ClientStatus.CANCELLED) {
+          throw new BadRequestException(
+            'No se puede instalar un servicio para un cliente cortado o cancelado',
+          );
+        }
 
-      const device = await tx.networkDevice.findUnique({ where: { id: dto.deviceId } });
-      if (!device || !device.isActive) {
-        throw new NotFoundException('Dispositivo de red no encontrado o inactivo');
-      }
+        const device = await tx.networkDevice.findUnique({ where: { id: dto.deviceId } });
+        if (!device || !device.isActive) {
+          throw new NotFoundException('Dispositivo de red no encontrado o inactivo');
+        }
 
-      const conflictingAccess = await tx.networkAccess.findFirst({
-        where: {
-          deviceId: dto.deviceId,
-          OR: [{ macAddress: dto.macAddress }, { ipAssigned: dto.ipAddress }],
-        },
-      });
-      if (conflictingAccess && conflictingAccess.clientId !== dto.clientId) {
-        throw new ConflictException('La dirección IP o MAC ya está asignada a otro cliente en este dispositivo');
-      }
-
-      const installation = await tx.installationRecord.create({
-        data: {
-          clientId: dto.clientId,
-          technicianId: user.id,
-          serviceType: dto.serviceType,
-          cableMeters: dto.cableMeters,
-          equipmentList: dto.equipmentList,
-          clientPaidEquipment: dto.clientPaidEquipment ?? false,
-          extraCostsApplied: dto.aplicarCostosExtra ?? false,
-          observations: dto.observations,
-          installationDate: new Date(dto.installationDate),
-          signedUrl: dto.signedUrl,
-        },
-      });
-
-      const currentAccess = await tx.networkAccess.findFirst({
-        where: { clientId: dto.clientId },
-      });
-      const networkAccess = currentAccess
-        ? await tx.networkAccess.update({
-            where: { id: currentAccess.id },
-            data: {
-              deviceId: dto.deviceId,
-              macAddress: dto.macAddress,
-              ipAssigned: dto.ipAddress,
-              isEnabled: true,
-              lastAction: 'installation-registered',
-              lastActionAt: new Date(),
-            },
-            select: { id: true, clientId: true, deviceId: true, macAddress: true, ipAssigned: true },
-          })
-        : await tx.networkAccess.create({
-            data: {
-              clientId: dto.clientId,
-              deviceId: dto.deviceId,
-              macAddress: dto.macAddress,
-              ipAssigned: dto.ipAddress,
-              isEnabled: true,
-              lastAction: 'installation-registered',
-              lastActionAt: new Date(),
-            },
-            select: { id: true, clientId: true, deviceId: true, macAddress: true, ipAssigned: true },
+        // A CPE MAC identifies one physical device: it can never belong to two clients, on any router.
+        const macOwner = await tx.networkAccess.findFirst({ where: { macAddress } });
+        if (macOwner && macOwner.clientId !== dto.clientId) {
+          const owner = await tx.client.findUnique({
+            where: { id: macOwner.clientId },
+            select: { clientCode: true },
           });
+          throw new ConflictException(
+            `La MAC ${macAddress} ya está registrada${owner?.clientCode ? ` para el cliente ${owner.clientCode}` : ' para otro cliente'}`,
+          );
+        }
 
-      const updatedClient = await tx.client.update({
-        where: { id: dto.clientId },
-        data: { status: ClientStatus.ACTIVE },
-        select: { status: true },
+        const ipOwner = await tx.networkAccess.findFirst({
+          where: { deviceId: dto.deviceId, ipAssigned: dto.ipAddress },
+        });
+        if (ipOwner && ipOwner.clientId !== dto.clientId) {
+          throw new ConflictException(
+            `La IP ${dto.ipAddress} ya está asignada a otro cliente en este dispositivo`,
+          );
+        }
+
+        const installation = await tx.installationRecord.create({
+          data: {
+            clientId: dto.clientId,
+            technicianId: user.id,
+            serviceType: dto.serviceType,
+            cableMeters: dto.cableMeters,
+            equipmentList: dto.equipmentList,
+            clientPaidEquipment: dto.clientPaidEquipment ?? false,
+            extraCostsApplied: dto.aplicarCostosExtra ?? false,
+            observations: dto.observations,
+            installationDate: new Date(dto.installationDate),
+            signedUrl: dto.signedUrl,
+          },
+        });
+
+        const currentAccess = await tx.networkAccess.findFirst({
+          where: { clientId: dto.clientId },
+        });
+        const networkAccess = currentAccess
+          ? await tx.networkAccess.update({
+              where: { id: currentAccess.id },
+              data: {
+                deviceId: dto.deviceId,
+                macAddress,
+                ipAssigned: dto.ipAddress,
+                isEnabled: true,
+                lastAction: 'installation-registered',
+                lastActionAt: new Date(),
+              },
+              select: {
+                id: true,
+                clientId: true,
+                deviceId: true,
+                macAddress: true,
+                ipAssigned: true,
+              },
+            })
+          : await tx.networkAccess.create({
+              data: {
+                clientId: dto.clientId,
+                deviceId: dto.deviceId,
+                macAddress,
+                ipAssigned: dto.ipAddress,
+                isEnabled: true,
+                lastAction: 'installation-registered',
+                lastActionAt: new Date(),
+              },
+              select: {
+                id: true,
+                clientId: true,
+                deviceId: true,
+                macAddress: true,
+                ipAssigned: true,
+              },
+            });
+
+        const updatedClient = await tx.client.update({
+          where: { id: dto.clientId },
+          data: { status: ClientStatus.ACTIVE },
+          select: { status: true },
+        });
+
+        return { installation, networkAccess, clientStatus: updatedClient.status };
+      })
+      .catch((error: unknown) => {
+        // Two actas submitted at the same time: the unique index is the final guard.
+        if (isUniqueViolation(error, 'macAddress')) {
+          throw new ConflictException(`La MAC ${macAddress} ya está registrada para otro cliente`);
+        }
+        throw error;
       });
-
-      return { installation, networkAccess, clientStatus: updatedClient.status };
-    });
 
     if (dto.aplicarCostosExtra) {
       this.eventEmitter.emit(
         INSTALLATION_EXTRA_COSTS_APPLIED_EVENT,
-        new InstallationExtraCostsAppliedEvent(result.installation.id, dto.clientId, user.id, new Date()),
+        new InstallationExtraCostsAppliedEvent(
+          result.installation.id,
+          dto.clientId,
+          user.id,
+          new Date(),
+        ),
       );
     }
 
