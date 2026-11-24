@@ -7,6 +7,17 @@ import { CreatePromotionDto, UpdatePromotionDto } from './dto/create-promotion.d
 
 export type PromotionView = Promotion & { imageUrl: string | null };
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Date-only values cover the whole day in Bogotá (UTC-5): start at 00:00, end at 23:59:59. */
+export function startOfWindow(value: string): Date {
+  return new Date(DATE_ONLY.test(value) ? `${value}T00:00:00-05:00` : value);
+}
+
+export function endOfWindow(value: string): Date {
+  return new Date(DATE_ONLY.test(value) ? `${value}T23:59:59.999-05:00` : value);
+}
+
 function toView(promotion: Promotion): PromotionView {
   return { ...promotion, imageUrl: promotion.imageFileId ? fileUrl(promotion.imageFileId) : null };
 }
@@ -50,8 +61,8 @@ export class PromotionsService {
         title: dto.title.trim(),
         description: dto.description.trim(),
         imageFileId: dto.imageFileId,
-        startsAt: dto.startsAt ? new Date(dto.startsAt) : null,
-        endsAt: dto.endsAt ? new Date(dto.endsAt) : null,
+        startsAt: dto.startsAt ? startOfWindow(dto.startsAt) : null,
+        endsAt: dto.endsAt ? endOfWindow(dto.endsAt) : null,
         isActive: dto.isActive ?? true,
         createdById: user.id,
       },
@@ -79,8 +90,8 @@ export class PromotionsService {
         ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
         ...(dto.description !== undefined ? { description: dto.description.trim() } : {}),
         ...(dto.imageFileId !== undefined ? { imageFileId: dto.imageFileId } : {}),
-        ...(dto.startsAt !== undefined ? { startsAt: new Date(dto.startsAt) } : {}),
-        ...(dto.endsAt !== undefined ? { endsAt: new Date(dto.endsAt) } : {}),
+        ...(dto.startsAt !== undefined ? { startsAt: startOfWindow(dto.startsAt) } : {}),
+        ...(dto.endsAt !== undefined ? { endsAt: endOfWindow(dto.endsAt) } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       },
     });
@@ -95,7 +106,7 @@ export class PromotionsService {
   }
 
   private assertWindow(startsAt?: string, endsAt?: string): void {
-    if (startsAt && endsAt && new Date(endsAt) < new Date(startsAt)) {
+    if (startsAt && endsAt && endOfWindow(endsAt) < startOfWindow(startsAt)) {
       throw new BadRequestException('La fecha de fin debe ser posterior a la de inicio');
     }
   }
