@@ -6,6 +6,7 @@ import {
   FileText,
   MapPinned,
   Package,
+  ReceiptText,
   Search,
   Settings,
   UserPlus,
@@ -22,7 +23,16 @@ export const ADMIN_NAV_ITEMS: DashboardNavItem[] = [
   { label: 'Clientes', to: '/admin/clientes', icon: <Users className={iconClassName} /> },
   { label: 'Planes', to: '/admin/planes', icon: <Package className={iconClassName} /> },
   { label: 'Políticas', to: '/admin/politicas', icon: <Settings className={iconClassName} /> },
-  { label: 'Facturación', to: '/admin/facturacion', icon: <CreditCard className={iconClassName} /> },
+  {
+    label: 'Facturación',
+    to: '/admin/facturacion',
+    icon: <CreditCard className={iconClassName} />,
+  },
+  {
+    label: 'Gestión de Pagos',
+    to: '/admin/pagos',
+    icon: <ReceiptText className={iconClassName} />,
+  },
   { label: 'Operación', to: '/admin/operacion', icon: <Wrench className={iconClassName} /> },
   { label: 'Informes', to: '/admin/informes', icon: <FileText className={iconClassName} /> },
 ];
@@ -35,11 +45,19 @@ export const CASHIER_NAV_ITEMS: DashboardNavItem[] = [
 
 /** Technician sidebar: summary, installation acta and client onboarding. */
 export const TECHNICIAN_NAV_ITEMS: DashboardNavItem[] = [
-  { label: 'Resumen', to: '/tecnico/dashboard', icon: <ClipboardCheck className={iconClassName} /> },
+  {
+    label: 'Resumen',
+    to: '/tecnico/dashboard',
+    icon: <ClipboardCheck className={iconClassName} />,
+  },
   {
     label: 'Acta de instalación',
     to: '/tecnico/instalaciones',
     icon: <MapPinned className={iconClassName} />,
   },
-  { label: 'Registrar cliente', to: '/clientes/nuevo', icon: <UserPlus className={iconClassName} /> },
+  {
+    label: 'Registrar cliente',
+    to: '/clientes/nuevo',
+    icon: <UserPlus className={iconClassName} />,
+  },
 ];

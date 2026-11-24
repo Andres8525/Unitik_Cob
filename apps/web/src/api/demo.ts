@@ -832,6 +832,55 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     });
     writeState(state);
     result = { success: true };
+  } else if (route === '/payments' && method === 'GET') {
+    const status = url.searchParams.get('status') ?? 'PENDING_VALIDATION';
+    result = state.payments
+      .filter(
+        (payment) =>
+          payment.status === status &&
+          (payment.paymentMethod === 'NEQUI' || payment.paymentMethod === 'BANK_TRANSFER'),
+      )
+      .map((payment) => {
+        const invoice = state.invoices.find((item) => item.id === payment.invoiceId);
+        const client = invoice && findClient(state, invoice.clientId);
+        return {
+          ...payment,
+          validatedAt: payment.validatedAt ?? null,
+          invoice: invoice && {
+            invoiceNumber: invoice.invoiceNumber,
+            period: invoice.period,
+            total: invoice.total,
+            client: client && { clientCode: client.clientCode, user: client.user },
+          },
+        };
+      });
+  } else if (/^\/payments\/[^/]+\/validate$/.test(route) && method === 'PATCH') {
+    const payment = state.payments.find((item) => item.id === route.split('/')[2]);
+    if (!payment) throw new Error('No se encontró el pago de demostración.');
+    if (payment.status !== 'PENDING_VALIDATION') {
+      throw new Error(`El pago ya fue procesado (estado: ${String(payment.status)})`);
+    }
+    const invoice = state.invoices.find((item) => item.id === payment.invoiceId);
+    if (body.approve === true) {
+      if (!payment.proofUrl) {
+        throw new Error('La validación manual de Nequi/transferencia exige el comprobante adjunto');
+      }
+      payment.status = 'VALIDATED';
+      if (invoice) invoice.status = 'PAID';
+    } else {
+      if (!String(body.reason ?? '').trim()) throw new Error('El motivo de rechazo es obligatorio');
+      payment.status = 'REJECTED';
+      state.notifications.unshift({
+        id: `demo-notification-${crypto.randomUUID()}`,
+        type: 'PAYMENT_REJECTED',
+        content: `Su comprobante fue rechazado: ${String(body.reason)}`,
+        createdAt: now,
+        status: 'UNREAD',
+      });
+    }
+    payment.validatedAt = now;
+    writeState(state);
+    result = payment;
   } else if (route === '/payments/accounts' && method === 'GET') {
     result = state.paymentAccounts ?? DEFAULT_DEMO_ACCOUNTS;
   } else if (route === '/payments' && method === 'POST') {

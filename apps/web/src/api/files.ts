@@ -115,14 +115,20 @@ export function fileIdFrom(urlOrId: string): string {
  * release with URL.revokeObjectURL when it is a blob: URL.
  */
 export async function fileObjectUrl(urlOrId: string): Promise<string> {
+  return (await fileObject(urlOrId)).url;
+}
+
+/** Like fileObjectUrl but also reports the MIME type (to tell images from PDF proofs). */
+export async function fileObject(urlOrId: string): Promise<{ url: string; mimeType: string }> {
   const id = fileIdFrom(urlOrId);
   if (isDemoMode()) {
     const file = readDemoFiles()[id];
-    if (!file) throw new Error('La imagen ya no está disponible en esta demo.');
-    return file.dataUrl;
+    if (!file) throw new Error('El archivo ya no está disponible en esta demo.');
+    return { url: file.dataUrl, mimeType: file.mimeType };
   }
   const response = await authFetch(`/files/${encodeURIComponent(id)}`);
-  return URL.createObjectURL(await response.blob());
+  const blob = await response.blob();
+  return { url: URL.createObjectURL(blob), mimeType: blob.type };
 }
 
 /** Triggers a browser download of an authenticated API resource (e.g. a PDF receipt). */
