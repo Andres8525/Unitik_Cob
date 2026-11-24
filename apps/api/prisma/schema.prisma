@@ -421,3 +421,29 @@ enum Phase {
   BASELINE // before intervention
   POST_INTERVENTION // after intervention
 }
+
+// ============================================================
+// STORED FILES (installation photos, payment proofs, promotions)
+// Kept in PostgreSQL so they survive redeploys on ephemeral disks.
+// ============================================================
+
+enum FilePurpose {
+  INSTALLATION_SITE
+  INSTALLATION_EQUIPMENT
+  PAYMENT_PROOF
+  PROMOTION
+}
+
+model StoredFile {
+  id           String      @id @default(uuid())
+  purpose      FilePurpose
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  data         Bytes
+  uploadedById String
+  createdAt    DateTime    @default(now())
+
+  @@index([purpose])
+  @@map("stored_files")
+}
