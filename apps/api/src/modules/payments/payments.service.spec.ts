@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test } from '@nestjs/testing';
-import { InvoiceStatus, PaymentMethod, PaymentStatus, Role } from '@prisma/client';
+import { FilePurpose, InvoiceStatus, PaymentMethod, PaymentStatus, Role } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { FilesService } from '../files/files.service';
 import { PaymentReconnectionPolicy } from '../governance/payment-reconnection.policy';
@@ -16,7 +16,13 @@ describe('PaymentsService (Policy 1 prototype)', () => {
   const auditMock = { record: jest.fn() };
   const prismaMock = {
     invoice: { findUnique: jest.fn(), update: jest.fn() },
-    payment: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), findFirst: jest.fn() },
+    payment: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
     notification: { create: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -83,6 +89,49 @@ describe('PaymentsService (Policy 1 prototype)', () => {
     );
 
     expect(payment.status).toBe(PaymentStatus.PENDING_VALIDATION);
+  });
+
+  it('links the uploaded proof and stores its URL so manual validation can approve it', async () => {
+    prismaMock.invoice.findUnique.mockResolvedValueOnce({
+      id: 'inv-1',
+      status: InvoiceStatus.PENDING,
+      client: { userId: clientUser.id },
+    });
+    prismaMock.payment.create.mockImplementationOnce(({ data }) => Promise.resolve(data));
+
+    const payment = await service.register(
+      {
+        invoiceId: 'inv-1',
+        amount: 60000,
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        reference: 'TRF-1',
+        proofFileId: '33333333-3333-4333-8333-333333333333',
+      },
+      clientUser,
+    );
+
+    expect(filesMock.assertOwnedFile).toHaveBeenCalledWith(
+      '33333333-3333-4333-8333-333333333333',
+      FilePurpose.PAYMENT_PROOF,
+      clientUser,
+    );
+    expect(payment).toMatchObject({
+      proofFileId: '33333333-3333-4333-8333-333333333333',
+      proofUrl: '/api/files/33333333-3333-4333-8333-333333333333',
+    });
+  });
+
+  it('lists only digital payments for the administrator review queue', async () => {
+    prismaMock.payment.findMany.mockResolvedValueOnce([]);
+
+    await service.listForReview();
+
+    const query = prismaMock.payment.findMany.mock.calls[0][0];
+    expect(query.where).toEqual({
+      status: PaymentStatus.PENDING_VALIDATION,
+      paymentMethod: { in: [PaymentMethod.NEQUI, PaymentMethod.BANK_TRANSFER] },
+    });
+    expect(query.orderBy).toEqual({ createdAt: 'asc' });
   });
 
   it('rejects cash payments through the generic pending-payment endpoint for clients', async () => {
