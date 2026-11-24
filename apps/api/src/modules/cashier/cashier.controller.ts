@@ -7,7 +7,7 @@ import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CashierService, CashReceipt, DailyClose } from './cashier.service';
 import { ReceiveCashDto } from './dto/receive-cash.dto';
-import { ReceiptsService } from './receipts.service';
+import { ReceiptEmailResult, ReceiptsService } from './receipts.service';
 
 @ApiTags('cashier')
 @ApiBearerAuth()
@@ -60,5 +60,12 @@ export class CashierController {
     );
     response.setHeader('Cache-Control', 'private, no-store');
     response.end(pdf);
+  }
+
+  @Post('receipts/:paymentId/email')
+  @Audited({ entity: 'Payment', action: 'RECEIPT_EMAILED' })
+  @ApiOperation({ summary: 'Enviar el recibo en PDF al correo registrado del cliente' })
+  emailReceipt(@Param('paymentId', ParseUUIDPipe) paymentId: string): Promise<ReceiptEmailResult> {
+    return this.receiptsService.emailToClient(paymentId);
   }
 }
