@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ClientStatus, ServiceType } from '@prisma/client';
+import { ClientStatus, FilePurpose, Prisma, ServiceType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FilesService } from '../files/files.service';
 import { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
@@ -98,5 +98,89 @@ describe('InstallationsController', () => {
     expect(tx.installationRecord.create).not.toHaveBeenCalled();
     expect(tx.client.update).not.toHaveBeenCalled();
     expect(eventEmitterMock.emit).not.toHaveBeenCalled();
+  });
+  it('normalizes the MAC and stores the serial on the acta and the network access', async () => {
+    await controller.create(
+      { ...dto, macAddress: 'aa-bb-cc-dd-ee-ff', equipmentSerial: ' hg8145v5-0001 ' },
+      technician,
+    );
+
+    expect(tx.networkAccess.findFirst).toHaveBeenCalledWith({
+      where: { macAddress: 'AA:BB:CC:DD:EE:FF' },
+    });
+    expect(tx.installationRecord.create.mock.calls[0][0].data).toMatchObject({
+      macAddress: 'AA:BB:CC:DD:EE:FF',
+      ipAddress: dto.ipAddress,
+      equipmentSerial: 'HG8145V5-0001',
+    });
+    expect(tx.networkAccess.create.mock.calls[0][0].data).toMatchObject({
+      macAddress: 'AA:BB:CC:DD:EE:FF',
+      equipmentSerial: 'HG8145V5-0001',
+    });
+  });
+
+  it('rejects a MAC registered to another client on any router and names that client', async () => {
+    tx.networkAccess.findFirst.mockResolvedValueOnce({
+      clientId: 'another-client',
+      deviceId: 'other-router',
+    });
+    tx.client.findUnique
+      .mockResolvedValueOnce({ id: 'client-1', status: ClientStatus.SUSPENDED })
+      .mockResolvedValueOnce({ clientCode: 'CLI-0042' });
+
+    await expect(controller.create(dto, technician)).rejects.toThrow(
+      'La MAC AA:BB:CC:DD:EE:FF ya está registrada para el cliente CLI-0042',
+    );
+    expect(tx.installationRecord.create).not.toHaveBeenCalled();
+  });
+
+  it('maps a concurrent unique-index violation on the MAC to a conflict', async () => {
+    (prismaMock.$transaction as jest.Mock).mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '5.22.0',
+        meta: { target: ['macAddress'] },
+      }),
+    );
+
+    await expect(controller.create(dto, technician)).rejects.toThrow(ConflictException);
+  });
+
+  it('validates and links the site and equipment photos', async () => {
+    await controller.create(
+      {
+        ...dto,
+        sitePhotoId: '11111111-1111-4111-8111-111111111111',
+        equipmentPhotoId: '22222222-2222-4222-8222-222222222222',
+      },
+      technician,
+    );
+
+    expect(filesServiceMock.assertOwnedFile).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+      FilePurpose.INSTALLATION_SITE,
+      technician,
+    );
+    expect(filesServiceMock.assertOwnedFile).toHaveBeenCalledWith(
+      '22222222-2222-4222-8222-222222222222',
+      FilePurpose.INSTALLATION_EQUIPMENT,
+      technician,
+    );
+    expect(tx.installationRecord.create.mock.calls[0][0].data).toMatchObject({
+      sitePhotoId: '11111111-1111-4111-8111-111111111111',
+      equipmentPhotoId: '22222222-2222-4222-8222-222222222222',
+    });
+  });
+
+  it('does not open the transaction when a photo is not valid', async () => {
+    filesServiceMock.assertOwnedFile.mockRejectedValueOnce(new Error('archivo inválido'));
+
+    await expect(
+      controller.create(
+        { ...dto, sitePhotoId: '11111111-1111-4111-8111-111111111111' },
+        technician,
+      ),
+    ).rejects.toThrow('archivo inválido');
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 });
