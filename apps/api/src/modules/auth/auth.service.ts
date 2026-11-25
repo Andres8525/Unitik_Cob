@@ -19,6 +19,10 @@ export const MAX_FAILED_LOGINS = 5;
 /** HU-01: how long the temporary lock lasts. */
 export const LOGIN_LOCK_MINUTES = 15;
 
+/** Changes every time the password changes; 0 while it never did. */
+const passwordVersion = (user: Pick<User, 'passwordChangedAt'>): number =>
+  user.passwordChangedAt?.getTime() ?? 0;
+
 interface RequestMeta {
   ipAddress?: string;
   userAgent?: string;
@@ -143,6 +147,10 @@ export class AuthService {
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Usuario inactivo o inexistente');
     }
+    // A password change revokes every refresh token issued before it.
+    if ((payload.pwv ?? 0) !== passwordVersion(user)) {
+      throw new UnauthorizedException('La sesión expiró por un cambio de contraseña');
+    }
 
     await this.auditService.record({
       userId: user.id,
@@ -214,7 +222,11 @@ export class AuthService {
 
   private async issueTokens(user: User): Promise<TokenPair> {
     const accessPayload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
-    const refreshPayload: RefreshPayload = { sub: user.id, tokenType: 'refresh' };
+    const refreshPayload: RefreshPayload = {
+      sub: user.id,
+      tokenType: 'refresh',
+      pwv: passwordVersion(user),
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(accessPayload),

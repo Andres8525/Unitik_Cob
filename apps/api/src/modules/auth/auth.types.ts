@@ -11,6 +11,12 @@ export interface JwtPayload {
 export interface RefreshPayload {
   sub: string;
   tokenType: 'refresh';
+  /**
+   * Password version: passwordChangedAt in ms (0 if never changed) when the
+   * token was issued. JWT iat has 1-second precision, too coarse to tell a
+   * token issued just before a password change from one issued just after.
+   */
+  pwv?: number;
 }
 
 export interface TokenPair {

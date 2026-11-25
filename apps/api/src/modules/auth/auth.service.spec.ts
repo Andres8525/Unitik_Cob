@@ -161,6 +161,30 @@ describe('AuthService', () => {
     );
   });
 
+  it('rejects refresh tokens issued before the last password change', async () => {
+    const user = await buildUser();
+    const refreshToken = await jwtService.signAsync(
+      { sub: user.id, tokenType: 'refresh', pwv: 0 },
+      { secret: 'change-me-refresh-secret' },
+    );
+    // Same second as the token: iat alone could not tell them apart.
+    prismaMock.user.findUnique.mockResolvedValueOnce({ ...user, passwordChangedAt: new Date() });
+
+    await expect(service.refresh(refreshToken, meta)).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('accepts refresh tokens issued after the password change', async () => {
+    const changedAt = new Date();
+    const user = { ...(await buildUser()), passwordChangedAt: changedAt };
+    const refreshToken = await jwtService.signAsync(
+      { sub: user.id, tokenType: 'refresh', pwv: changedAt.getTime() },
+      { secret: 'change-me-refresh-secret' },
+    );
+    prismaMock.user.findUnique.mockResolvedValueOnce(user);
+
+    await expect(service.refresh(refreshToken, meta)).resolves.toHaveProperty('accessToken');
+  });
+
   it('rejects an access token used as refresh token', async () => {
     const accessLikeToken = await jwtService.signAsync(
       { sub: 'user-1', tokenType: 'access' },
