@@ -38,6 +38,19 @@ export class AuthController {
     return this.authService.refresh(dto.refreshToken, { ipAddress, userAgent });
   }
 
+  @Post('logout')
+  @AllowPendingPassword()
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cerrar sesión (queda registrado en la auditoría)' })
+  async logout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<{ loggedOut: true }> {
+    return this.authService.logout(user.id, { ipAddress, userAgent });
+  }
+
   @Post('change-password')
   @AllowPendingPassword()
   @HttpCode(HttpStatus.OK)

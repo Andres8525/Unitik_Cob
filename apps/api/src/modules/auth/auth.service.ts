@@ -156,6 +156,21 @@ export class AuthService {
   }
 
   /**
+   * HU-02: records the logout so the session end is traceable. Tokens live in
+   * the browser, which deletes them; the audit entry closes the session trail.
+   */
+  async logout(userId: string, meta: RequestMeta): Promise<{ loggedOut: true }> {
+    await this.auditService.record({
+      userId,
+      action: 'LOGOUT',
+      entity: 'User',
+      entityId: userId,
+      ...meta,
+    });
+    return { loggedOut: true };
+  }
+
+  /**
    * Replaces the password (HU-01 business rule: clients created by staff start
    * with their document id and must change it on first login).
    */

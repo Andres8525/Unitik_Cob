@@ -179,6 +179,13 @@ describe('AuthService', () => {
     await expect(service.refresh(refreshToken, meta)).rejects.toThrow(UnauthorizedException);
   });
 
+  it('audits LOGOUT for the current user (HU-02)', async () => {
+    await expect(service.logout('user-1', meta)).resolves.toEqual({ loggedOut: true });
+    expect(auditMock.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'LOGOUT', userId: 'user-1', ipAddress: '127.0.0.1' }),
+    );
+  });
+
   describe('changePassword (HU-01 first login)', () => {
     it('replaces the password, clears the flag and audits PASSWORD_CHANGED', async () => {
       prismaMock.user.findUnique.mockResolvedValueOnce({
