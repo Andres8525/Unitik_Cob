@@ -88,6 +88,8 @@ export class ClientsService {
               phone: dto.phone,
               passwordHash,
               role: Role.CLIENT,
+              // HU-01: the document id is only a temporary password
+              mustChangePassword: dto.password === undefined,
             },
           },
         },

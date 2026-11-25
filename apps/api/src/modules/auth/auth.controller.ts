@@ -1,9 +1,11 @@
 import { Body, Controller, HttpCode, HttpStatus, Ip, Post, Headers } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import { AuthResult } from './auth.types';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @ApiTags('auth')
@@ -33,5 +35,18 @@ export class AuthController {
     @Headers('user-agent') userAgent?: string,
   ): Promise<AuthResult> {
     return this.authService.refresh(dto.refreshToken, { ipAddress, userAgent });
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cambiar la contraseña (obligatorio en el primer ingreso del cliente)' })
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<{ changed: true }> {
+    return this.authService.changePassword(user.id, dto, { ipAddress, userAgent });
   }
 }

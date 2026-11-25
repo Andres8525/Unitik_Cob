@@ -26,5 +26,7 @@ export interface AuthResult extends TokenPair {
     lastName: string;
     email: string;
     role: Role;
+    /** HU-01: the client still uses the initial password and must change it. */
+    mustChangePassword: boolean;
   };
 }

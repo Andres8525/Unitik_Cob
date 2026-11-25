@@ -1,4 +1,10 @@
-import { HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '@prisma/client';
@@ -6,6 +12,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthResult, JwtPayload, RefreshPayload, TokenPair } from './auth.types';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 /** HU-01: the account is locked after this many consecutive failed logins. */
 export const MAX_FAILED_LOGINS = 5;
@@ -148,6 +155,48 @@ export class AuthService {
     return { ...(await this.issueTokens(user)), user: this.publicUser(user) };
   }
 
+  /**
+   * Replaces the password (HU-01 business rule: clients created by staff start
+   * with their document id and must change it on first login).
+   */
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+    meta: RequestMeta,
+  ): Promise<{ changed: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.isActive) throw new NotFoundException('Usuario no encontrado');
+
+    if (!(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
+      throw new BadRequestException('La contraseña actual no es correcta');
+    }
+    if (dto.newPassword === dto.currentPassword) {
+      throw new BadRequestException('La nueva contraseña debe ser distinta de la actual');
+    }
+    if (dto.newPassword === user.documentId) {
+      throw new BadRequestException('La nueva contraseña no puede ser tu número de documento');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await bcrypt.hash(dto.newPassword, 10),
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+      },
+    });
+    await this.auditService.record({
+      userId: user.id,
+      action: 'PASSWORD_CHANGED',
+      entity: 'User',
+      entityId: user.id,
+      newValues: { forced: user.mustChangePassword },
+      policyRef: 'ISO/IEC 38500 - Responsabilidad',
+      ...meta,
+    });
+    return { changed: true };
+  }
+
   private async issueTokens(user: User): Promise<TokenPair> {
     const accessPayload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
     const refreshPayload: RefreshPayload = { sub: user.id, tokenType: 'refresh' };
@@ -174,6 +223,7 @@ export class AuthService {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
+      mustChangePassword: user.mustChangePassword,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { HttpException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -177,5 +177,56 @@ describe('AuthService', () => {
       { secret: 'change-me-refresh-secret' },
     );
     await expect(service.refresh(refreshToken, meta)).rejects.toThrow(UnauthorizedException);
+  });
+
+  describe('changePassword (HU-01 first login)', () => {
+    it('replaces the password, clears the flag and audits PASSWORD_CHANGED', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        ...(await buildUser()),
+        mustChangePassword: true,
+      });
+
+      await expect(
+        service.changePassword(
+          'user-1',
+          { currentPassword: 'Admin123*', newPassword: 'Nueva2026x' },
+          meta,
+        ),
+      ).resolves.toEqual({ changed: true });
+
+      const update = prismaMock.user.update.mock.calls[0][0];
+      expect(update.data.mustChangePassword).toBe(false);
+      expect(update.data.passwordChangedAt).toBeInstanceOf(Date);
+      expect(await bcrypt.compare('Nueva2026x', update.data.passwordHash)).toBe(true);
+      expect(auditMock.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'PASSWORD_CHANGED', newValues: { forced: true } }),
+      );
+    });
+
+    it('rejects a wrong current password', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce(await buildUser());
+      await expect(
+        service.changePassword(
+          'user-1',
+          { currentPassword: 'otra1234', newPassword: 'Nueva2026x' },
+          meta,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.user.update).not.toHaveBeenCalled();
+    });
+
+    it('does not accept the document id as the new password', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        ...(await buildUser()),
+        passwordHash: await bcrypt.hash('1085123456', 4),
+      });
+      await expect(
+        service.changePassword(
+          'user-1',
+          { currentPassword: '1085123456', newPassword: '1085123456' },
+          meta,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 });
