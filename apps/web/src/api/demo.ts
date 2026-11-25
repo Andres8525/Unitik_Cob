@@ -709,6 +709,19 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
         .filter((client) => client.overdueCount > 0),
     };
   } else if (route === '/dashboard/kpis' && method === 'GET') {
+    const todayCollection = (current: typeof state) => {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+      const paidToday = validatedPayments(current).filter(
+        (payment) =>
+          new Date(String(payment.validatedAt ?? payment.paidAt ?? 0)).toLocaleDateString('en-CA', {
+            timeZone: 'America/Bogota',
+          }) === today,
+      );
+      return {
+        todayRevenue: paidToday.reduce((sum, payment) => sum + Number(payment.amount), 0),
+        todayPayments: paidToday.length,
+      };
+    };
     result = {
       activeClients: state.clients.filter((client) => client.status === 'ACTIVE').length,
       suspendedClients: state.clients.filter((client) => client.status === 'SUSPENDED').length,
@@ -716,6 +729,7 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
         (sum, payment) => sum + Number(payment.amount),
         0,
       ),
+      ...todayCollection(state),
       overdueClients: new Set(
         state.invoices
           .filter((invoice) => invoice.status === 'OVERDUE')

@@ -69,7 +69,7 @@ export default function DashboardAdmin() {
     {
       label: 'Recaudado del mes',
       value: formatCop(data.monthRevenue),
-      detail: 'Pagos validados desde el día 1',
+      detail: `Hoy: ${formatCop(data.todayRevenue)} en ${data.todayPayments.toLocaleString('es-CO')} pago${data.todayPayments === 1 ? '' : 's'}`,
       icon: Banknote,
       color: 'bg-sky-50 text-sky-700 ring-sky-100',
     },
@@ -97,7 +97,10 @@ export default function DashboardAdmin() {
   ];
 
   return (
-    <section aria-label="Indicadores operativos" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <section
+      aria-label="Indicadores operativos"
+      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+    >
       {cards.map(({ label, value, detail, icon: Icon, color }) => (
         <article className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200" key={label}>
           <div className="flex items-start justify-between gap-3">

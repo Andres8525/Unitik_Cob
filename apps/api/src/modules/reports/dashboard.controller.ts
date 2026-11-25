@@ -1,12 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  ClientStatus,
-  InvoiceStatus,
-  PaymentStatus,
-  Role,
-  TicketStatus,
-} from '@prisma/client';
+import { ClientStatus, InvoiceStatus, PaymentStatus, Role, TicketStatus } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -14,11 +8,19 @@ export interface DashboardKpis {
   activeClients: number;
   suspendedClients: number;
   monthRevenue: number; // COP validados este mes
+  todayRevenue: number; // HU-05: total recaudado hoy (hora de Bogotá)
+  todayPayments: number;
   overdueClients: number;
   overdueAmount: number;
   openTickets: number;
   devicesOnline: number;
   devicesTotal: number;
+}
+
+/** Start of the current day in America/Bogota (UTC-5, no DST). */
+export function startOfBogotaDay(now = new Date()): Date {
+  const day = now.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+  return new Date(`${day}T00:00:00-05:00`);
 }
 
 /** Admin dashboard KPIs (uptime de red se deriva de lastPing de dispositivos). */
@@ -36,11 +38,13 @@ export class DashboardController {
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
     const onlineSince = new Date(Date.now() - 5 * 60_000);
+    const todayStart = startOfBogotaDay();
 
     const [
       activeClients,
       suspendedClients,
       monthPayments,
+      todayPayments,
       overdueInvoices,
       openTickets,
       devicesTotal,
@@ -51,6 +55,11 @@ export class DashboardController {
       this.prisma.payment.aggregate({
         _sum: { amount: true },
         where: { status: PaymentStatus.VALIDATED, validatedAt: { gte: monthStart } },
+      }),
+      this.prisma.payment.aggregate({
+        _sum: { amount: true },
+        _count: { _all: true },
+        where: { status: PaymentStatus.VALIDATED, validatedAt: { gte: todayStart } },
       }),
       this.prisma.invoice.findMany({
         where: { status: InvoiceStatus.OVERDUE },
@@ -69,6 +78,8 @@ export class DashboardController {
       activeClients,
       suspendedClients,
       monthRevenue: Number(monthPayments._sum.amount ?? 0),
+      todayRevenue: Number(todayPayments._sum.amount ?? 0),
+      todayPayments: todayPayments._count._all,
       overdueClients: new Set(overdueInvoices.map((i) => i.clientId)).size,
       overdueAmount: overdueInvoices.reduce((sum, i) => sum + Number(i.total), 0),
       openTickets,

@@ -41,6 +41,9 @@ export interface DashboardKpis {
   suspendedClients: number;
   /** COP validated during the current month. */
   monthRevenue: number;
+  /** HU-05: COP validated today (America/Bogota). */
+  todayRevenue: number;
+  todayPayments: number;
   overdueClients: number;
   overdueAmount: number;
   openTickets: number;
