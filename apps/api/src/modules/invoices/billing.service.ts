@@ -1,6 +1,6 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Invoice, InvoiceStatus, SubscriptionStatus } from '@prisma/client';
+import { Invoice, InvoiceStatus, PaymentStatus, SubscriptionStatus } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { AuditService } from '../audit/audit.service';
 import { ServiceContinuityPolicy } from '../governance/service-continuity.policy';
@@ -193,10 +193,47 @@ export class BillingService {
     return { invoice, previous };
   }
 
+  /**
+   * HU-05 business rule: only the administrator voids an issued invoice (the
+   * controller restricts the role). Invoices with a validated or pending
+   * payment can't be voided: the money trail must stay consistent.
+   */
+  async voidInvoice(invoiceId: string): Promise<{ invoice: Invoice; previous: Invoice }> {
+    const previous = await this.prisma.invoice.findUnique({ where: { id: invoiceId } });
+    if (!previous) throw new NotFoundException('Factura no encontrada');
+    if (previous.status === InvoiceStatus.CANCELLED) {
+      throw new ConflictException('La factura ya está anulada');
+    }
+    if (previous.status === InvoiceStatus.PAID) {
+      throw new ConflictException('No se puede anular una factura pagada');
+    }
+    const payments = await this.prisma.payment.count({
+      where: {
+        invoiceId,
+        status: { in: [PaymentStatus.PENDING_VALIDATION, PaymentStatus.VALIDATED] },
+      },
+    });
+    if (payments > 0) {
+      throw new ConflictException(
+        'La factura tiene pagos registrados o por validar: resuélvelos antes de anularla',
+      );
+    }
+
+    const invoice = await this.prisma.invoice.update({
+      where: { id: invoiceId },
+      data: { status: InvoiceStatus.CANCELLED },
+    });
+    return { invoice, previous };
+  }
+
   /** Portfolio & delinquency view for admin/cashier. */
   async portfolio(): Promise<PortfolioSummary> {
     const open = await this.prisma.invoice.findMany({
-      where: { status: { in: [InvoiceStatus.PENDING, InvoiceStatus.OVERDUE, InvoiceStatus.PROMISE_TO_PAY] } },
+      where: {
+        status: {
+          in: [InvoiceStatus.PENDING, InvoiceStatus.OVERDUE, InvoiceStatus.PROMISE_TO_PAY],
+        },
+      },
       include: { client: { include: { user: true } } },
     });
 

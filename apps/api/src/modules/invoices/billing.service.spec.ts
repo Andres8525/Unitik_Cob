@@ -15,6 +15,7 @@ describe('BillingService', () => {
   const prismaMock = {
     subscription: { findMany: jest.fn() },
     invoice: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn() },
+    payment: { count: jest.fn() },
   };
   const configMock = {
     getNumber: jest.fn((key: string) => {
@@ -198,5 +199,38 @@ describe('BillingService', () => {
     await expect(service.applyDiscount('inv-4', 70000, 'motivo')).rejects.toThrow(
       ConflictException,
     );
+  });
+
+  describe('voidInvoice (HU-05)', () => {
+    const pending = { id: 'inv-1', status: InvoiceStatus.PENDING };
+
+    it('voids a pending invoice without payments', async () => {
+      prismaMock.invoice.findUnique.mockResolvedValueOnce(pending);
+      prismaMock.payment.count.mockResolvedValueOnce(0);
+      prismaMock.invoice.update.mockResolvedValueOnce({
+        ...pending,
+        status: InvoiceStatus.CANCELLED,
+      });
+
+      const { invoice, previous } = await service.voidInvoice('inv-1');
+
+      expect(invoice.status).toBe(InvoiceStatus.CANCELLED);
+      expect(previous.status).toBe(InvoiceStatus.PENDING);
+    });
+
+    it('refuses to void a paid invoice', async () => {
+      prismaMock.invoice.findUnique.mockResolvedValueOnce({
+        ...pending,
+        status: InvoiceStatus.PAID,
+      });
+      await expect(service.voidInvoice('inv-1')).rejects.toThrow(ConflictException);
+    });
+
+    it('refuses to void an invoice with a proof waiting for validation', async () => {
+      prismaMock.invoice.findUnique.mockResolvedValueOnce(pending);
+      prismaMock.payment.count.mockResolvedValueOnce(1);
+      await expect(service.voidInvoice('inv-1')).rejects.toThrow(ConflictException);
+      expect(prismaMock.invoice.update).not.toHaveBeenCalled();
+    });
   });
 });

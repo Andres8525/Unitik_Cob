@@ -19,6 +19,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BillingService, PortfolioSummary } from './billing.service';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
+import { VoidInvoiceDto } from './dto/void-invoice.dto';
 
 @ApiTags('invoices')
 @ApiBearerAuth()
@@ -94,6 +95,20 @@ export class InvoicesController {
       discount: Number(previous.discount),
       reason: dto.reason,
     };
+    return invoice;
+  }
+
+  @Patch(':id/void')
+  @Roles(Role.ADMIN)
+  @Audited({ entity: 'Invoice', action: 'VOID' })
+  @ApiOperation({ summary: 'Anular factura emitida con motivo (solo ADMIN, HU-05, auditado)' })
+  async voidInvoice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: VoidInvoiceDto,
+    @Req() request: Request & { auditOldValues?: unknown },
+  ): Promise<Invoice> {
+    const { invoice, previous } = await this.billingService.voidInvoice(id);
+    request.auditOldValues = { status: previous.status, reason: dto.reason };
     return invoice;
   }
 }
