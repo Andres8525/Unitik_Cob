@@ -5,6 +5,8 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   role: Role;
+  /** HU-01: still using the initial password. */
+  mustChangePassword?: boolean;
 }
 
 /** Injects the authenticated user (set by JwtStrategy) into a handler parameter. */

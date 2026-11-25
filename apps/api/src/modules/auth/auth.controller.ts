@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, HttpStatus, Ip, Post, Headers } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedUser, CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AllowPendingPassword } from '../../common/decorators/allow-pending-password.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import { AuthResult } from './auth.types';
@@ -38,6 +39,7 @@ export class AuthController {
   }
 
   @Post('change-password')
+  @AllowPendingPassword()
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cambiar la contraseña (obligatorio en el primer ingreso del cliente)' })
