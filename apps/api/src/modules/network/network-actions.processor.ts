@@ -7,6 +7,7 @@ import { ServiceContinuityPolicy } from '../governance/service-continuity.policy
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NETWORK_ACTIONS_QUEUE } from '../../queues/queues.module';
+import { clientChannels } from '../notifications/notification-channels';
 import { MikrotikService } from './mikrotik.service';
 import {
   ROUTER_RECONNECTION_FAILED_EVENT,
@@ -132,6 +133,12 @@ export class NetworkActionsProcessor extends WorkerHost {
       },
     });
     this.logger.log(`Reconectado cliente=${clientId} en ${minutes.toFixed(2)} min (SLA 5 min)`);
+    await this.notifyClient(
+      clientId,
+      'RECONNECTION',
+      'Tu servicio de internet UNITIK fue reactivado. Si no navegas en unos minutos, ' +
+        'reinicia tu equipo o comunícate con soporte.',
+    );
   }
 
   private async recordReconnectionFailure({
@@ -231,6 +238,13 @@ export class NetworkActionsProcessor extends WorkerHost {
       policyRef: POLICY_REF,
     });
     this.logger.log(`Suspendido cliente=${clientId} por ${reason}`);
+    // HU-08 criterion 3: the client is told why the service stopped
+    await this.notifyClient(
+      clientId,
+      'SERVICE_SUSPENDED',
+      `Tu servicio de internet UNITIK fue suspendido por mora (${reason}). ` +
+        'Paga o reporta tu comprobante en el portal para reactivarlo.',
+    );
   }
 
   private async changeProfile(job: Job<ProfileChangeJobData>): Promise<void> {
@@ -263,6 +277,28 @@ export class NetworkActionsProcessor extends WorkerHost {
       policyRef: POLICY_REF,
     });
     this.logger.log(`Perfil PPPoE de cliente=${clientId} cambiado a "${newProfile}"`);
+  }
+
+  /**
+   * Tells the client about a change in the service. Best effort: the network
+   * action already succeeded, so a notification failure must not retry it.
+   */
+  private async notifyClient(clientId: string, type: string, content: string): Promise<void> {
+    try {
+      const client = await this.prisma.client.findUnique({
+        where: { id: clientId },
+        include: { user: { select: { phone: true, email: true } } },
+      });
+      if (!client) return;
+      await this.prisma.notification.createMany({
+        data: clientChannels(client.user).map((channel) => ({ clientId, channel, type, content })),
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo notificar ${type} al cliente=${clientId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   /** PPPoE secret when there is one; otherwise the IP registered in the acta (HU-09). */

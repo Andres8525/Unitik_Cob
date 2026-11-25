@@ -12,7 +12,8 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
 
   const prismaMock = {
     networkAccess: { findUnique: jest.fn(), update: jest.fn() },
-    client: { update: jest.fn() },
+    client: { update: jest.fn(), findUnique: jest.fn() },
+    notification: { createMany: jest.fn() },
     operationalMetric: { create: jest.fn() },
     $transaction: jest.fn().mockResolvedValue([]),
   };
@@ -168,6 +169,65 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
       expect(auditMock.record).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'NETWORK_ACTION_SKIPPED' }),
       );
+    });
+  });
+
+  describe('avisos al cliente (HU-08)', () => {
+    beforeEach(() => {
+      prismaMock.client.findUnique.mockResolvedValue({
+        id: 'client-1',
+        user: { phone: '3136543433', email: 'laura@example.com' },
+      });
+    });
+
+    it('informa la reactivación por bandeja, correo y WhatsApp', async () => {
+      prismaMock.networkAccess.findUnique.mockResolvedValueOnce({ ...access, isEnabled: false });
+
+      await processor.process(
+        jobOf('reconnect', {
+          networkAccessId: 'access-1',
+          clientId: 'client-1',
+          paymentId: 'pay-1',
+          validatedAt: new Date().toISOString(),
+        }),
+      );
+
+      const { data } = prismaMock.notification.createMany.mock.calls[0][0];
+      expect(data).toHaveLength(3);
+      expect(data[0]).toMatchObject({ clientId: 'client-1', type: 'RECONNECTION' });
+    });
+
+    it('informa la suspensión por mora con el motivo', async () => {
+      prismaMock.networkAccess.findUnique.mockResolvedValueOnce(access);
+
+      await processor.process(
+        jobOf('suspend', {
+          networkAccessId: 'access-1',
+          clientId: 'client-1',
+          invoiceId: 'inv-1',
+          reason: 'factura FCT-2026-011 vencida',
+        }),
+      );
+
+      const { data } = prismaMock.notification.createMany.mock.calls[0][0];
+      expect(data[0].type).toBe('SERVICE_SUSPENDED');
+      expect(data[0].content).toContain('FCT-2026-011');
+    });
+
+    it('no reintenta la acción de red si falla el aviso', async () => {
+      prismaMock.networkAccess.findUnique.mockResolvedValueOnce(access);
+      prismaMock.notification.createMany.mockRejectedValueOnce(new Error('db down'));
+
+      await expect(
+        processor.process(
+          jobOf('suspend', {
+            networkAccessId: 'access-1',
+            clientId: 'client-1',
+            invoiceId: 'inv-1',
+            reason: 'mora',
+          }),
+        ),
+      ).resolves.toBeUndefined();
     });
   });
 
