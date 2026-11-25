@@ -5,6 +5,7 @@ import {
   CreditCard,
   FileText,
   MapPinned,
+  Megaphone,
   Package,
   ReceiptText,
   Search,
@@ -33,6 +34,7 @@ export const ADMIN_NAV_ITEMS: DashboardNavItem[] = [
     to: '/admin/pagos',
     icon: <ReceiptText className={iconClassName} />,
   },
+  { label: 'Publicidad', to: '/admin/publicidad', icon: <Megaphone className={iconClassName} /> },
   { label: 'Operación', to: '/admin/operacion', icon: <Wrench className={iconClassName} /> },
   { label: 'Informes', to: '/admin/informes', icon: <FileText className={iconClassName} /> },
 ];

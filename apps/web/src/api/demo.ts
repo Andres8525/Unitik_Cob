@@ -143,6 +143,7 @@ interface DemoState {
   /** Optional so browsers holding an older demo snapshot keep working. */
   plans?: DemoPlan[];
   paymentAccounts?: Array<Record<string, unknown>>;
+  promotions?: Array<Record<string, unknown>>;
   clients: DemoClient[];
   invoices: DemoInvoice[];
   tickets: DemoTicket[];
@@ -614,6 +615,55 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     );
     writeState(state);
     result = plan;
+  } else if (route.startsWith('/promotions')) {
+    const promotions = (state.promotions ??= []);
+    const id = route.split('/')[2];
+    if (route === '/promotions' && method === 'GET') {
+      result = promotions;
+    } else if (route === '/promotions/active' && method === 'GET') {
+      const current = Date.now();
+      result = promotions.filter(
+        (promotion) =>
+          promotion.isActive === true &&
+          (!promotion.startsAt || Date.parse(String(promotion.startsAt)) <= current) &&
+          (!promotion.endsAt || Date.parse(String(promotion.endsAt)) >= current),
+      );
+    } else if (route === '/promotions' && method === 'POST') {
+      const promotion = {
+        id: `demo-promotion-${crypto.randomUUID()}`,
+        title: String(body.title ?? '').trim(),
+        description: String(body.description ?? '').trim(),
+        imageFileId: body.imageFileId ?? null,
+        imageUrl: body.imageFileId ? `/api/files/${String(body.imageFileId)}` : null,
+        startsAt: windowDate(body.startsAt, 'start'),
+        endsAt: windowDate(body.endsAt, 'end'),
+        isActive: body.isActive !== false,
+        createdAt: now,
+      };
+      if (!promotion.title || !promotion.description) {
+        throw new Error('El título y la descripción son obligatorios');
+      }
+      promotions.unshift(promotion);
+      writeState(state);
+      result = promotion;
+    } else if (id && method === 'PATCH') {
+      const promotion = promotions.find((item) => item.id === id);
+      if (!promotion) throw new Error('Promoción no encontrada');
+      Object.assign(promotion, {
+        ...body,
+        ...(body.startsAt !== undefined ? { startsAt: windowDate(body.startsAt, 'start') } : {}),
+        ...(body.endsAt !== undefined ? { endsAt: windowDate(body.endsAt, 'end') } : {}),
+        ...(body.imageFileId ? { imageUrl: `/api/files/${String(body.imageFileId)}` } : {}),
+      });
+      writeState(state);
+      result = promotion;
+    } else if (id && method === 'DELETE') {
+      state.promotions = promotions.filter((item) => item.id !== id);
+      writeState(state);
+      result = { deleted: true };
+    } else {
+      throw new Error(`La ruta ${method} ${route} no está implementada en la demo.`);
+    }
   } else if (route === '/subscriptions/my' && method === 'GET') {
     result = {
       status: 'ACTIVE',
@@ -978,6 +1028,14 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
 /** Payments that count as collected money (cash or digital already validated). */
 function validatedPayments(state: DemoState): Array<Record<string, unknown>> {
   return state.payments.filter((payment) => payment.status === 'VALIDATED');
+}
+
+/** Same rule as the API: date-only bounds cover the whole day in Bogotá. */
+function windowDate(value: unknown, edge: 'start' | 'end'): string | null {
+  if (typeof value !== 'string' || !value) return null;
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const suffix = edge === 'start' ? 'T00:00:00-05:00' : 'T23:59:59.999-05:00';
+  return new Date(dateOnly ? `${value}${suffix}` : value).toISOString();
 }
 
 function registerPayment(state: DemoState, invoiceId: string): Record<string, unknown> {

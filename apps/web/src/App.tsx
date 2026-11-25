@@ -8,6 +8,7 @@ import AdminClientesPage from './pages/admin/AdminClientesPage';
 import AdminOperacionPage from './pages/admin/AdminOperacionPage';
 import AdminInformesPage from './pages/admin/AdminInformesPage';
 import GestionPagosPage from './pages/admin/GestionPagosPage';
+import PublicidadPage from './pages/admin/PublicidadPage';
 import ListaPlanes from './pages/admin/ListaPlanes';
 import ConfiguracionPoliticas from './pages/admin/ConfiguracionPoliticas';
 import NuevoClientePage from './pages/admin/NuevoClientePage';
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/admin/clientes" element={<AdminClientesPage />} />
           <Route path="/admin/facturacion" element={<AdminFacturacionPage />} />
           <Route path="/admin/pagos" element={<GestionPagosPage />} />
+          <Route path="/admin/publicidad" element={<PublicidadPage />} />
           <Route path="/admin/operacion" element={<AdminOperacionPage />} />
           <Route path="/admin/informes" element={<AdminInformesPage />} />
           <Route path="/admin/planes" element={<ListaPlanes />} />
