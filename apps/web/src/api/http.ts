@@ -24,6 +24,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (isDemoMode()) return demoApi<T>(path, options);
 
   const response = await withAuth(path, options);
+  if (response.status === 403) await flagPendingPasswordChange(response.clone());
   if (response.status === 401 && useAuthStore.getState().refreshToken) {
     const refreshed = await refreshSession();
     if (refreshed) {
@@ -57,6 +58,12 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
     throw new ApiError(response.status, message);
   }
   return response;
+}
+
+/** HU-01: the API refuses every route until the initial password is replaced. */
+async function flagPendingPasswordChange(response: Response): Promise<void> {
+  const body = (await response.json().catch(() => null)) as { code?: string } | null;
+  if (body?.code === 'PASSWORD_CHANGE_REQUIRED') useAuthStore.getState().requirePasswordChange();
 }
 
 function withAuth(path: string, options: RequestInit): Promise<Response> {

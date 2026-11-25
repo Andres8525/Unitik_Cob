@@ -509,6 +509,12 @@ export async function demoApi<T>(path: string, options: RequestInit = {}): Promi
     }
     return session as T;
   }
+  if (route === '/auth/change-password' && method === 'POST') {
+    return { changed: true } as T;
+  }
+  if (route === '/auth/logout' && method === 'POST') {
+    return { loggedOut: true } as T;
+  }
   if (route === '/auth/refresh' && method === 'POST') {
     const user = getAuthUser().user;
     return (user ? demoSession(user.role) : null) as T;

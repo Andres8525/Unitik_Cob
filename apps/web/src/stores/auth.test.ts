@@ -28,6 +28,32 @@ describe('auth store', () => {
     expect(useAuthStore.getState().user).toBeNull();
     expect(useAuthStore.getState().accessToken).toBeNull();
   });
+
+  it('flags the session when the API asks for the initial password change (HU-01)', () => {
+    useAuthStore
+      .getState()
+      .setSession(
+        {
+          id: 'u1',
+          documentId: '1085123456',
+          firstName: 'Rosa',
+          lastName: 'Delgado',
+          email: 'rosa@correo.com',
+          role: 'CLIENT',
+        },
+        'access',
+        'refresh',
+      );
+
+    useAuthStore.getState().requirePasswordChange();
+
+    expect(useAuthStore.getState().user?.mustChangePassword).toBe(true);
+  });
+
+  it('ignores the password flag when there is no session', () => {
+    useAuthStore.getState().requirePasswordChange();
+    expect(useAuthStore.getState().user).toBeNull();
+  });
 });
 
 describe('formatCop (regla de oro #9)', () => {

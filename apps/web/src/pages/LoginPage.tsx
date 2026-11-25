@@ -6,7 +6,12 @@ import { z } from 'zod';
 import { api, apiUrl } from '../api/http';
 import BrandLogo from '../components/BrandLogo';
 import TelecomBackground from '../components/TelecomBackground';
-import { ROLE_DASHBOARD_PATHS, useAuthStore, type SessionUser } from '../stores/auth';
+import {
+  CHANGE_PASSWORD_PATH,
+  ROLE_DASHBOARD_PATHS,
+  useAuthStore,
+  type SessionUser,
+} from '../stores/auth';
 import { DEMO_ACCOUNTS, demoSession, isDemoMode } from '../api/demo';
 
 interface LoginResponse {
@@ -56,6 +61,12 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
+      if (response.status === 423) {
+        // HU-01: temporary lock after 5 failed attempts (message carries the minutes left)
+        const body = (await response.json().catch(() => ({}))) as { message?: string };
+        setServerError(body.message ?? 'Cuenta bloqueada temporalmente. Intenta más tarde.');
+        return;
+      }
       if (!response.ok) {
         setServerError(
           response.status === 401
@@ -66,6 +77,10 @@ export default function LoginPage() {
       }
       const data = (await response.json()) as LoginResponse;
       setSession(data.user, data.accessToken, data.refreshToken);
+      if (data.user.mustChangePassword) {
+        navigate(CHANGE_PASSWORD_PATH, { replace: true });
+        return;
+      }
       const requestedPath = (location.state as { from?: { pathname?: string } } | null)?.from
         ?.pathname;
       const canRegisterClients = data.user.role === 'ADMIN' || data.user.role === 'TECHNICIAN';

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import CambiarContrasenaPage from './pages/CambiarContrasenaPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminFacturacionPage from './pages/admin/AdminFacturacionPage';
 import AdminClientesPage from './pages/admin/AdminClientesPage';
@@ -48,6 +49,7 @@ export default function App() {
       )}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/cambiar-contrasena" element={<CambiarContrasenaPage />} />
         <Route path="/registro" element={<PublicClientRegistrationPage />} />
         <Route path="/estado" element={<HomePage />} />
 
