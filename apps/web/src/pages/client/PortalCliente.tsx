@@ -11,6 +11,7 @@ import {
 } from '../../stores/clientePortal';
 import { useNotificacionesStore } from '../../stores/notificaciones';
 import FormularioReportePago from './FormularioReportePago';
+import PromocionesCliente from './PromocionesCliente';
 
 const serviceStatusStyles = {
   ACTIVO: {
@@ -177,6 +178,8 @@ export default function PortalCliente() {
                 </div>
               </div>
             </section>
+
+            <PromocionesCliente />
 
             <section className="rounded-2xl bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3">
