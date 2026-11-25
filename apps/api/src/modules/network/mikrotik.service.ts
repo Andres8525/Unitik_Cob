@@ -1,8 +1,18 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RouterOSAPI } from 'node-routeros';
 import { decryptSecret } from '../../common/utils/crypto.util';
 import { PrismaService } from '../../prisma/prisma.service';
+
+/**
+ * Firewall address-list holding the IPs of suspended clients registered by
+ * MAC/IP in the installation acta (no PPPoE secret). The RouterBoard needs a
+ * filter rule such as:
+ *   /ip firewall filter add chain=forward src-address-list=unitik-suspendidos action=drop
+ */
+export const SUSPENDED_ADDRESS_LIST = 'unitik-suspendidos';
+
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 
 export interface Connection {
   pppoeUser: string;
@@ -58,6 +68,44 @@ export class MikrotikService {
         await api.write('/ppp/active/remove', [`=.id=${session['.id']}`]);
       }
     });
+  }
+
+  /**
+   * HU-09 for clients without PPPoE: suspends by adding the client IP to the
+   * SUSPENDED_ADDRESS_LIST (idempotent: an IP already listed is left as is).
+   */
+  async blockAddress(deviceId: string, ipAddress: string, comment: string): Promise<void> {
+    this.assertIpv4(ipAddress);
+    await this.execute(deviceId, `block ${ipAddress} (${SUSPENDED_ADDRESS_LIST})`, async (api) => {
+      const listed = await api.write('/ip/firewall/address-list/print', [
+        `?list=${SUSPENDED_ADDRESS_LIST}`,
+        `?address=${ipAddress}`,
+      ]);
+      if (listed.length > 0) return;
+      await api.write('/ip/firewall/address-list/add', [
+        `=list=${SUSPENDED_ADDRESS_LIST}`,
+        `=address=${ipAddress}`,
+        `=comment=${comment.replace(/[\r\n=]/g, ' ').slice(0, 120)}`,
+      ]);
+    });
+  }
+
+  /** HU-09 reconnection by IP: removes every entry of the IP from the list. */
+  async unblockAddress(deviceId: string, ipAddress: string): Promise<void> {
+    this.assertIpv4(ipAddress);
+    await this.execute(
+      deviceId,
+      `unblock ${ipAddress} (${SUSPENDED_ADDRESS_LIST})`,
+      async (api) => {
+        const listed = await api.write('/ip/firewall/address-list/print', [
+          `?list=${SUSPENDED_ADDRESS_LIST}`,
+          `?address=${ipAddress}`,
+        ]);
+        for (const entry of listed) {
+          await api.write('/ip/firewall/address-list/remove', [`=.id=${entry['.id']}`]);
+        }
+      },
+    );
   }
 
   /** Creates a PPPoE user (installation). */
@@ -170,6 +218,13 @@ export class MikrotikService {
     const id = secrets[0]?.['.id'];
     if (!id) throw new NotFoundException(`Usuario PPPoE "${name}" no existe en la RouterBoard`);
     return String(id);
+  }
+
+  /** Values reach RouterOS as API words: only plain IPv4 addresses are accepted. */
+  private assertIpv4(ipAddress: string): void {
+    if (!IPV4.test(ipAddress)) {
+      throw new BadRequestException(`Dirección IP inválida para la RouterBoard: ${ipAddress}`);
+    }
   }
 
   private async simulate(deviceId: string, operation: string): Promise<void> {
