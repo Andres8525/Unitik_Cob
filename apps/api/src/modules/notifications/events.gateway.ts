@@ -2,13 +2,13 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
-import {
-  OnGatewayConnection,
-  WebSocketGateway,
-  WebSocketServer,
-} from '@nestjs/websockets';
+import { OnGatewayConnection, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { PaymentReconnectionPolicy } from '../governance/payment-reconnection.policy';
+import {
+  PAYMENT_REPORTED_EVENT,
+  PaymentReportedEvent,
+} from '../payments/events/payment-reported.event';
 import { PaymentValidatedEvent } from '../payments/events/payment-validated.event';
 import { JwtPayload } from '../auth/auth.types';
 import {
@@ -58,6 +58,20 @@ export class EventsGateway implements OnGatewayConnection {
 
   private emitToTechnicians(event: string, payload: unknown): void {
     this.server.to('TECHNICIAN').emit(event, payload);
+  }
+
+  /** HU-07: live alert in the admin panel (Gestión de Pagos). */
+  @OnEvent(PAYMENT_REPORTED_EVENT)
+  onPaymentReported(event: PaymentReportedEvent): void {
+    this.server.to('ADMIN').emit(PAYMENT_REPORTED_EVENT, {
+      paymentId: event.paymentId,
+      invoiceNumber: event.invoiceNumber,
+      clientId: event.clientId,
+      amount: event.amount,
+      paymentMethod: event.paymentMethod,
+      at: event.reportedAt,
+      message: 'Nuevo comprobante de pago por validar',
+    });
   }
 
   @OnEvent(PaymentReconnectionPolicy.PAYMENT_VALIDATED_EVENT)

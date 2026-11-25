@@ -1,13 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
-import {
-  Notification,
-  NotificationChannel,
-  NotificationStatus,
-  Role,
-} from '@prisma/client';
+import { Notification, NotificationChannel, NotificationStatus, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  PAYMENT_REPORTED_EVENT,
+  PaymentReportedEvent,
+} from '../payments/events/payment-reported.event';
 import {
   ROUTER_RECONNECTION_FAILED_EVENT,
   RouterReconnectionFailedEvent,
@@ -48,6 +47,37 @@ export class NotificationsService {
       where: { id },
       data: { status: NotificationStatus.READ },
     });
+  }
+
+  /** HU-07: every active administrator gets the proof in the inbox. */
+  @OnEvent(PAYMENT_REPORTED_EVENT)
+  async notifyAdminsOfReportedPayment(event: PaymentReportedEvent): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: { role: Role.ADMIN, isActive: true },
+        select: { id: true },
+      });
+      if (admins.length === 0) return;
+      const method = event.paymentMethod === 'NEQUI' ? 'Nequi' : 'transferencia';
+      const amount = event.amount.toLocaleString('es-CO');
+      await this.prisma.notification.createMany({
+        data: admins.map(({ id }) => ({
+          userId: id,
+          channel: NotificationChannel.IN_APP,
+          type: 'PAYMENT_REPORTED',
+          content:
+            `Nuevo comprobante por ${method} de COP ${amount} ` +
+            `para la factura ${event.invoiceNumber}. Valídalo en Gestión de Pagos.`,
+          status: NotificationStatus.SENT,
+          sentAt: event.reportedAt,
+        })),
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo alertar a los administradores del pago ${event.paymentId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   @OnEvent(ROUTER_RECONNECTION_FAILED_EVENT)

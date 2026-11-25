@@ -91,6 +91,40 @@ describe('PaymentsService (Policy 1 prototype)', () => {
     expect(payment.status).toBe(PaymentStatus.PENDING_VALIDATION);
   });
 
+  it('alerts administrators when a client reports a proof (HU-07)', async () => {
+    prismaMock.invoice.findUnique.mockResolvedValueOnce({
+      id: 'inv-1',
+      invoiceNumber: 'FCT-2026-002',
+      clientId: 'client-1',
+      status: InvoiceStatus.PENDING,
+      client: { userId: clientUser.id },
+    });
+    prismaMock.payment.create.mockImplementationOnce(({ data }) =>
+      Promise.resolve({ id: 'pay-9', createdAt: new Date(), ...data }),
+    );
+
+    await service.register(
+      { invoiceId: 'inv-1', amount: 50000, paymentMethod: PaymentMethod.NEQUI, reference: 'NQ-9' },
+      clientUser,
+    );
+
+    expect(emitterMock.emit).toHaveBeenCalledWith(
+      'payment.reported',
+      expect.objectContaining({
+        paymentId: 'pay-9',
+        invoiceNumber: 'FCT-2026-002',
+        clientId: 'client-1',
+        amount: 50000,
+        paymentMethod: PaymentMethod.NEQUI,
+      }),
+    );
+    // Reporting never validates: reconnection waits for a person (HU-07 rule)
+    expect(emitterMock.emit).not.toHaveBeenCalledWith(
+      PaymentReconnectionPolicy.PAYMENT_VALIDATED_EVENT,
+      expect.anything(),
+    );
+  });
+
   it('links the uploaded proof and stores its URL so manual validation can approve it', async () => {
     prismaMock.invoice.findUnique.mockResolvedValueOnce({
       id: 'inv-1',

@@ -24,6 +24,7 @@ import { PromisesService } from '../promises/promises.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterPaymentDto } from './dto/register-payment.dto';
 import { ValidatePaymentDto } from './dto/validate-payment.dto';
+import { PAYMENT_REPORTED_EVENT, PaymentReportedEvent } from './events/payment-reported.event';
 import { PaymentValidatedEvent } from './events/payment-validated.event';
 import { WompiEvent } from './wompi.service';
 
@@ -102,7 +103,7 @@ export class PaymentsService {
       await this.filesService.assertOwnedFile(dto.proofFileId, FilePurpose.PAYMENT_PROOF, user);
     }
 
-    return this.prisma.payment.create({
+    const payment = await this.prisma.payment.create({
       data: {
         invoiceId: dto.invoiceId,
         amount: dto.amount,
@@ -115,6 +116,21 @@ export class PaymentsService {
         paidAt: new Date(),
       },
     });
+
+    // HU-07 criterion 3: immediate alert in the administrators' inbox
+    this.eventEmitter.emit(
+      PAYMENT_REPORTED_EVENT,
+      new PaymentReportedEvent(
+        payment.id,
+        invoice.id,
+        invoice.invoiceNumber,
+        invoice.clientId,
+        Number(payment.amount),
+        payment.paymentMethod,
+        payment.createdAt ?? new Date(),
+      ),
+    );
+    return payment;
   }
 
   /** Cash payments are settled immediately and trigger the standard reconnection event. */
