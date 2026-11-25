@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { api, apiUrl } from '../api/http';
 import BrandLogo from '../components/BrandLogo';
@@ -177,18 +177,10 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-4 text-center text-xs text-slate-500">
-            <p>
-              Los clientes ingresan con su correo o documento y pueden crear una cuenta desde aquí.
-            </p>
-            <Link
-              to="/registro"
-              className="mt-3 inline-flex rounded-lg border border-unitik-200 px-4 py-2 font-semibold text-unitik-700 transition hover:bg-unitik-50"
-            >
-              Crear cuenta de cliente
-            </Link>
-            <p className="mt-1">Regístrate para acceder al portal del cliente.</p>
-          </div>
+          <p className="mt-4 text-center text-xs text-slate-500">
+            Los clientes ingresan con el correo o documento registrado por UNITIK. Si aún no tienes
+            acceso, comunícate con nuestra oficina.
+          </p>
         </div>
 
         <p className="mt-5 text-center text-xs text-slate-400">
