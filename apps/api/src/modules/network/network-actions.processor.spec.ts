@@ -20,6 +20,8 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
     enableClient: jest.fn(),
     disableClient: jest.fn(),
     changeUserProfile: jest.fn(),
+    blockAddress: jest.fn(),
+    unblockAddress: jest.fn(),
   };
   const auditMock = { record: jest.fn() };
   const eventEmitterMock = { emit: jest.fn() };
@@ -68,7 +70,10 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
 
     expect(mikrotikMock.enableClient).toHaveBeenCalledWith('device-1', 'cliente001');
     expect(auditMock.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'RECONNECT', policyRef: 'ISO/IEC 38500 - Responsabilidad' }),
+      expect.objectContaining({
+        action: 'RECONNECT',
+        policyRef: 'ISO/IEC 38500 - Responsabilidad',
+      }),
     );
     expect(prismaMock.operationalMetric.create).toHaveBeenCalled();
   });
@@ -92,6 +97,78 @@ describe('NetworkActionsProcessor (Políticas 1, 2 y 4)', () => {
         newValues: expect.objectContaining({ reason: expect.stringContaining('Mora') }),
       }),
     );
+  });
+
+  describe('clientes registrados por acta (MAC/IP, sin PPPoE) — HU-09', () => {
+    const actaAccess = {
+      ...access,
+      pppoeUser: null,
+      ipAssigned: '10.20.0.15',
+      macAddress: 'AA:BB:CC:11:22:33',
+    };
+
+    it('reconnect: saca la IP de la address-list y registra la métrica', async () => {
+      prismaMock.networkAccess.findUnique.mockResolvedValueOnce({
+        ...actaAccess,
+        isEnabled: false,
+      });
+
+      await processor.process(
+        jobOf('reconnect', {
+          networkAccessId: 'access-1',
+          clientId: 'client-1',
+          paymentId: 'pay-1',
+          validatedAt: new Date().toISOString(),
+        }),
+      );
+
+      expect(mikrotikMock.unblockAddress).toHaveBeenCalledWith('device-1', '10.20.0.15');
+      expect(mikrotikMock.enableClient).not.toHaveBeenCalled();
+      expect(auditMock.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'RECONNECT',
+          newValues: expect.objectContaining({ mode: 'address-list' }),
+        }),
+      );
+      expect(prismaMock.operationalMetric.create).toHaveBeenCalled();
+    });
+
+    it('suspend: agrega la IP a la address-list con el motivo', async () => {
+      prismaMock.networkAccess.findUnique.mockResolvedValueOnce(actaAccess);
+
+      await processor.process(
+        jobOf('suspend', {
+          networkAccessId: 'access-1',
+          clientId: 'client-1',
+          invoiceId: 'inv-1',
+          reason: 'Mora: factura FCT-2026-011',
+        }),
+      );
+
+      expect(mikrotikMock.blockAddress).toHaveBeenCalledWith(
+        'device-1',
+        '10.20.0.15',
+        'Mora: factura FCT-2026-011',
+      );
+      expect(mikrotikMock.disableClient).not.toHaveBeenCalled();
+    });
+
+    it('change-profile: se omite y audita porque requiere PPPoE', async () => {
+      prismaMock.networkAccess.findUnique.mockResolvedValueOnce(actaAccess);
+
+      await processor.process(
+        jobOf('change-profile', {
+          networkAccessId: 'access-1',
+          clientId: 'client-1',
+          newProfile: 'fibra-100',
+        }),
+      );
+
+      expect(mikrotikMock.changeUserProfile).not.toHaveBeenCalled();
+      expect(auditMock.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'NETWORK_ACTION_SKIPPED' }),
+      );
+    });
   });
 
   it('change-profile: cambia el perfil PPPoE y audita CHANGE_PROFILE', async () => {

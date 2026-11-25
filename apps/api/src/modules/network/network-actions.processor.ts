@@ -36,6 +36,12 @@ export interface ProfileChangeJobData {
 
 const POLICY_REF = 'ISO/IEC 38500 - Responsabilidad';
 
+type LoadedAccess = NetworkAccess & { device: NetworkDevice };
+
+/** How the RouterBoard controls this client: PPPoE secret or IP address list. */
+const modeOf = (access: NetworkAccess): 'pppoe' | 'address-list' =>
+  access.pppoeUser ? 'pppoe' : 'address-list';
+
 // Static instance only for worker backoff wiring (pure class, no deps);
 // the DI-managed instance is used everywhere else.
 const continuity = new ServiceContinuityPolicy();
@@ -82,7 +88,7 @@ export class NetworkActionsProcessor extends WorkerHost {
     if (!access) return;
 
     try {
-      await this.mikrotik.enableClient(access.deviceId, access.pppoeUser);
+      await this.enableAccess(access);
     } catch (error) {
       const attemptsLimit = job.opts.attempts ?? continuity.maxAttempts();
       const attemptNumber = job.attemptsMade + 1;
@@ -112,7 +118,7 @@ export class NetworkActionsProcessor extends WorkerHost {
       entity: 'NetworkAccess',
       entityId: access.id,
       oldValues: { isEnabled: access.isEnabled, lastAction: access.lastAction },
-      newValues: { isEnabled: true, lastAction: 'reconnected', paymentId },
+      newValues: { isEnabled: true, lastAction: 'reconnected', paymentId, mode: modeOf(access) },
       policyRef: POLICY_REF,
     });
 
@@ -149,7 +155,9 @@ export class NetworkActionsProcessor extends WorkerHost {
     if (!access) return;
 
     const reason =
-      error instanceof Error ? error.message.replace(/[\r\n]/g, ' ').slice(0, 250) : 'Fallo desconocido de RouterBoard';
+      error instanceof Error
+        ? error.message.replace(/[\r\n]/g, ' ').slice(0, 250)
+        : 'Fallo desconocido de RouterBoard';
     const failedAt = new Date();
     const event = new RouterReconnectionFailedEvent(
       clientId,
@@ -191,7 +199,11 @@ export class NetworkActionsProcessor extends WorkerHost {
     const access = await this.loadAccess(networkAccessId, `factura ${invoiceId}`);
     if (!access) return;
 
-    await this.mikrotik.disableClient(access.deviceId, access.pppoeUser as string);
+    if (access.pppoeUser) {
+      await this.mikrotik.disableClient(access.deviceId, access.pppoeUser);
+    } else {
+      await this.mikrotik.blockAddress(access.deviceId, access.ipAssigned as string, reason);
+    }
 
     await this.prisma.$transaction([
       this.prisma.networkAccess.update({
@@ -209,7 +221,13 @@ export class NetworkActionsProcessor extends WorkerHost {
       entity: 'NetworkAccess',
       entityId: access.id,
       oldValues: { isEnabled: access.isEnabled, lastAction: access.lastAction },
-      newValues: { isEnabled: false, lastAction: 'disabled', invoiceId, reason },
+      newValues: {
+        isEnabled: false,
+        lastAction: 'disabled',
+        invoiceId,
+        reason,
+        mode: modeOf(access),
+      },
       policyRef: POLICY_REF,
     });
     this.logger.log(`Suspendido cliente=${clientId} por ${reason}`);
@@ -219,8 +237,19 @@ export class NetworkActionsProcessor extends WorkerHost {
     const { networkAccessId, clientId, newProfile } = job.data;
     const access = await this.loadAccess(networkAccessId, `perfil ${newProfile}`);
     if (!access) return;
+    if (!access.pppoeUser) {
+      // Bandwidth profiles live on PPPoE secrets; IP-only clients keep the queue set by hand.
+      await this.auditService.record({
+        action: 'NETWORK_ACTION_SKIPPED',
+        entity: 'NetworkAccess',
+        entityId: access.id,
+        newValues: { reason: 'Cambio de perfil requiere usuario PPPoE', newProfile, clientId },
+        policyRef: POLICY_REF,
+      });
+      return;
+    }
 
-    await this.mikrotik.changeUserProfile(access.deviceId, access.pppoeUser as string, newProfile);
+    await this.mikrotik.changeUserProfile(access.deviceId, access.pppoeUser, newProfile);
 
     await this.prisma.networkAccess.update({
       where: { id: access.id },
@@ -236,25 +265,35 @@ export class NetworkActionsProcessor extends WorkerHost {
     this.logger.log(`Perfil PPPoE de cliente=${clientId} cambiado a "${newProfile}"`);
   }
 
-  /** Loads the access or audits the anomaly (no retry for missing data). */
-  private async loadAccess(
-    networkAccessId: string,
-    context: string,
-  ): Promise<(NetworkAccess & { device: NetworkDevice; pppoeUser: string }) | null> {
+  /** PPPoE secret when there is one; otherwise the IP registered in the acta (HU-09). */
+  private async enableAccess(access: LoadedAccess): Promise<void> {
+    if (access.pppoeUser) {
+      await this.mikrotik.enableClient(access.deviceId, access.pppoeUser);
+    } else {
+      await this.mikrotik.unblockAddress(access.deviceId, access.ipAssigned as string);
+    }
+  }
+
+  /**
+   * Loads the access or audits the anomaly (no retry for missing data). An
+   * access is actionable with a PPPoE user or, for acta-registered clients,
+   * with the assigned IP.
+   */
+  private async loadAccess(networkAccessId: string, context: string): Promise<LoadedAccess | null> {
     const access = await this.prisma.networkAccess.findUnique({
       where: { id: networkAccessId },
       include: { device: true },
     });
-    if (!access || !access.pppoeUser) {
+    if (!access || (!access.pppoeUser && !access.ipAssigned)) {
       await this.auditService.record({
         action: 'NETWORK_ACTION_SKIPPED',
         entity: 'NetworkAccess',
         entityId: networkAccessId,
-        newValues: { reason: 'NetworkAccess o usuario PPPoE inexistente', context },
+        newValues: { reason: 'Acceso de red sin usuario PPPoE ni IP asignada', context },
         policyRef: POLICY_REF,
       });
       return null;
     }
-    return { ...access, pppoeUser: access.pppoeUser };
+    return access;
   }
 }
