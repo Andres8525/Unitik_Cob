@@ -17,19 +17,25 @@ datasource db {
 // ============================================================
 
 model User {
-  id           String     @id @default(uuid())
-  documentId   String     @unique // cédula
-  firstName    String
-  lastName     String
-  email        String     @unique
-  phone        String
-  passwordHash String
-  role         Role
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  client       Client?
-  auditLogs    AuditLog[]
+  id                  String     @id @default(uuid())
+  documentId          String     @unique // cédula
+  firstName           String
+  lastName            String
+  email               String     @unique
+  phone               String
+  passwordHash        String
+  role                Role
+  isActive            Boolean    @default(true)
+  // HU-01: temporary lockout after repeated failed logins
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  // HU-01: staff-created clients start with their document id as password
+  mustChangePassword  Boolean    @default(false)
+  passwordChangedAt   DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  client              Client?
+  auditLogs           AuditLog[]
 
   @@map("users")
 }

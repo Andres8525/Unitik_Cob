@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Client, ClientStatus, Prisma, Role, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -11,7 +7,17 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { PublicClientRegistrationDto } from './dto/public-client-registration.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 
-export type ClientWithUser = Client & { user: Omit<User, 'passwordHash'> };
+/** Credential and lockout columns never leave the API. */
+export type ClientWithUser = Client & {
+  user: Omit<
+    User,
+    | 'passwordHash'
+    | 'failedLoginAttempts'
+    | 'lockedUntil'
+    | 'mustChangePassword'
+    | 'passwordChangedAt'
+  >;
+};
 
 /** Maps target status to the domain action recorded in the audit trail. */
 export const STATUS_AUDIT_ACTION: Record<ClientStatus, string> = {
@@ -95,10 +101,7 @@ export class ClientsService {
     }
   }
 
-  async findAll(filters: {
-    status?: ClientStatus;
-    search?: string;
-  }): Promise<ClientWithUser[]> {
+  async findAll(filters: { status?: ClientStatus; search?: string }): Promise<ClientWithUser[]> {
     const where: Prisma.ClientWhereInput = {};
     if (filters.status) where.status = filters.status;
     if (filters.search) {
