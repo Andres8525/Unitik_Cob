@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Notification, NotificationChannel, NotificationStatus, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { clientChannels } from './notification-channels';
+import { PaymentReconnectionPolicy } from '../governance/payment-reconnection.policy';
+import { PaymentValidatedEvent } from '../payments/events/payment-validated.event';
 import {
   PAYMENT_REPORTED_EVENT,
   PaymentReportedEvent,
@@ -47,6 +50,45 @@ export class NotificationsService {
       where: { id },
       data: { status: NotificationStatus.READ },
     });
+  }
+
+  /**
+   * HU-08 criterion 2: a digital receipt goes to the client as soon as the
+   * payment is approved (manual validation or cash at the counter).
+   */
+  @OnEvent(PaymentReconnectionPolicy.PAYMENT_VALIDATED_EVENT)
+  async sendPaymentReceipt(event: PaymentValidatedEvent): Promise<void> {
+    try {
+      const payment = await this.prisma.payment.findUnique({
+        where: { id: event.paymentId },
+        include: { invoice: { include: { client: { include: { user: true } } } } },
+      });
+      if (!payment) return;
+      const { invoice } = payment;
+      const amount = Number(payment.amount).toLocaleString('es-CO');
+      const date = event.validatedAt.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+      const content =
+        `Pago confirmado: recibimos COP ${amount} para la factura ${invoice.invoiceNumber} ` +
+        `el ${date}. Tu servicio se está reactivando. Gracias por pagar a tiempo.`;
+
+      // Cash receipts are already e-mailed as PDF by the cashier flow.
+      const channels = clientChannels(invoice.client.user).filter(
+        (channel) => channel !== NotificationChannel.EMAIL || payment.paymentMethod !== 'CASH',
+      );
+      await this.prisma.notification.createMany({
+        data: channels.map((channel) => ({
+          clientId: invoice.clientId,
+          channel,
+          type: 'PAYMENT_CONFIRMED',
+          content,
+        })),
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo generar el recibo digital del pago ${event.paymentId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   /** HU-07: every active administrator gets the proof in the inbox. */
