@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { CheckCircle2, FileText, Upload, X } from 'lucide-react';
 import {
@@ -8,6 +8,7 @@ import {
   type ReportePagoFormValues,
 } from '../../schemas/reportePago';
 import { usePagosStore } from '../../stores/pagos';
+import ImageSourceButtons from '../../components/ImageSourceButtons';
 import DatosTransferencia from './DatosTransferencia';
 
 interface InvoiceOption {
@@ -30,7 +31,6 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
   const [radicado, setRadicado] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [draggingFile, setDraggingFile] = useState(false);
-  const fileElementRef = useRef<HTMLInputElement | null>(null);
   const {
     register,
     control,
@@ -143,11 +143,9 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
         render={({ field, fieldState }) => (
           <div>
             <span className="block text-sm font-medium text-slate-700">Comprobante de pago</span>
-            <label
-              className={`mt-1 flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-5 text-center transition ${
-                draggingFile
-                  ? 'border-unitik-600 bg-unitik-50'
-                  : 'border-slate-300 bg-slate-50 hover:border-unitik-500 hover:bg-unitik-50'
+            <div
+              className={`mt-1 flex min-h-28 flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-5 text-center transition ${
+                draggingFile ? 'border-unitik-600 bg-unitik-50' : 'border-slate-300 bg-slate-50'
               }`}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -161,46 +159,42 @@ export default function FormularioReportePago({ invoices }: FormularioReportePag
                 if (file) field.onChange(file);
               }}
             >
-              <input
-                accept={acceptedMimeTypes}
-                className="sr-only"
-                name={field.name}
-                onBlur={field.onBlur}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) field.onChange(file);
-                }}
-                ref={(element) => {
-                  field.ref(element);
-                  fileElementRef.current = element;
-                }}
-                type="file"
-              />
               {receipt ? (
                 <span className="flex max-w-full items-center gap-2 text-sm font-medium text-slate-700">
-                  <FileText className="h-5 w-5 shrink-0 text-unitik-600" />
+                  <FileText className="h-5 w-5 shrink-0 text-unitik-600" aria-hidden="true" />
                   <span className="truncate">{receipt.name}</span>
                 </span>
               ) : (
                 <>
                   <Upload className="h-6 w-6 text-unitik-600" aria-hidden="true" />
                   <span className="mt-2 text-sm font-semibold text-slate-800">
-                    Toca para adjuntar o arrastra el archivo aquí
+                    Toma una foto del comprobante o importa el archivo
                   </span>
-                  <span className="mt-1 text-xs text-slate-500">JPG, PNG o PDF · Máximo 5 MB</span>
+                  <span className="mt-1 text-xs text-slate-500">
+                    JPG, PNG o PDF · Máximo 5 MB · también puedes arrastrarlo aquí
+                  </span>
                 </>
               )}
-            </label>
+            </div>
+            <div className="mt-2">
+              <ImageSourceButtons
+                onFile={(file) => field.onChange(file)}
+                accept={acceptedMimeTypes}
+                disabled={isSubmitting}
+                cameraTitle="Foto del comprobante"
+                importLabel="Importar imagen o PDF"
+                importInputRef={field.ref}
+                name={field.name}
+                onBlur={field.onBlur}
+              />
+            </div>
             {receipt && (
               <button
                 type="button"
-                onClick={() => {
-                  resetField('file');
-                  if (fileElementRef.current) fileElementRef.current.value = '';
-                }}
+                onClick={() => resetField('file')}
                 className="mt-2 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-red-700"
               >
-                <X className="h-4 w-4" /> Quitar archivo
+                <X className="h-4 w-4" aria-hidden="true" /> Quitar archivo
               </button>
             )}
             {fieldState.error && (
