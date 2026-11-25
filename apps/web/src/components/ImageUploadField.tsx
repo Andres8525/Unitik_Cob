@@ -1,6 +1,7 @@
-import { Camera, X } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { ImageIcon, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { IMAGE_TYPES, validateImageFile } from '../api/files';
+import ImageSourceButtons from './ImageSourceButtons';
 
 interface ImageUploadFieldProps {
   label: string;
@@ -11,7 +12,7 @@ interface ImageUploadFieldProps {
   disabled?: boolean;
 }
 
-/** Image picker with preview; on phones it can open the camera directly. */
+/** Image field with preview and two actions: "Abrir cámara" and "Importar imagen". */
 export default function ImageUploadField({
   label,
   hint,
@@ -20,8 +21,6 @@ export default function ImageUploadField({
   error,
   disabled,
 }: ImageUploadFieldProps) {
-  const inputId = useId();
-  const inputRef = useRef<HTMLInputElement | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -35,8 +34,7 @@ export default function ImageUploadField({
     return () => URL.revokeObjectURL(url);
   }, [value]);
 
-  const pick = (file: File | undefined) => {
-    if (!file) return;
+  const pick = (file: File) => {
     const problem = validateImageFile(file);
     setLocalError(problem);
     onChange(problem ? null : file);
@@ -45,7 +43,6 @@ export default function ImageUploadField({
   const clear = () => {
     setLocalError(null);
     onChange(null);
-    if (inputRef.current) inputRef.current.value = '';
   };
 
   const message = localError ?? error;
@@ -66,31 +63,26 @@ export default function ImageUploadField({
           </button>
         </div>
       ) : (
-        <label
-          htmlFor={inputId}
-          className={`mt-1 flex h-44 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 text-center transition ${
-            message
-              ? 'border-red-300 bg-red-50'
-              : 'border-slate-300 bg-slate-50 hover:border-unitik-500 hover:bg-unitik-50'
-          } ${disabled ? 'pointer-events-none opacity-60' : ''}`}
+        <div
+          className={`mt-1 flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 text-center ${
+            message ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'
+          } ${disabled ? 'opacity-60' : ''}`}
         >
-          <Camera className="h-6 w-6 text-unitik-600" aria-hidden="true" />
-          <span className="mt-2 text-sm font-semibold text-slate-800">Tomar o subir foto</span>
+          <ImageIcon className="h-6 w-6 text-unitik-600" aria-hidden="true" />
+          <span className="mt-2 text-sm font-semibold text-slate-800">Sin foto</span>
           <span className="mt-1 text-xs text-slate-500">
             {hint ?? 'JPG, PNG o WEBP · Máximo 5 MB'}
           </span>
-        </label>
+        </div>
       )}
-      <input
-        id={inputId}
-        ref={inputRef}
-        type="file"
-        accept={IMAGE_TYPES.join(',')}
-        capture="environment"
-        className="sr-only"
-        disabled={disabled}
-        onChange={(event) => pick(event.target.files?.[0])}
-      />
+      <div className="mt-2">
+        <ImageSourceButtons
+          onFile={pick}
+          accept={IMAGE_TYPES.join(',')}
+          disabled={disabled}
+          cameraTitle={label}
+        />
+      </div>
       {message && <span className="mt-1 block text-xs text-red-600">{message}</span>}
     </div>
   );
