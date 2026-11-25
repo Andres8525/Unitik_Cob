@@ -172,14 +172,23 @@ export class ClientsService {
       throw new ConflictException(`El cliente ya está en estado ${dto.status}`);
     }
 
+    // HU-10 business rule: no commercial activation until the technician has
+    // registered the equipment (MAC and IP) in the installation acta.
     if (dto.status === ClientStatus.ACTIVE) {
       const access = await this.prisma.networkAccess.findFirst({
         where: { clientId: id },
-        select: { id: true },
+        select: { id: true, macAddress: true, ipAssigned: true },
       });
       if (!access) {
         throw new ConflictException(
           'No se puede activar al cliente sin registrar primero el equipo en el acta de instalación',
+        );
+      }
+      const missing = [!access.macAddress && 'MAC', !access.ipAssigned && 'IP'].filter(Boolean);
+      if (missing.length > 0) {
+        throw new ConflictException(
+          `No se puede activar al cliente: falta registrar la ${missing.join(' y la ')} ` +
+            'del equipo en el acta de instalación',
         );
       }
     }

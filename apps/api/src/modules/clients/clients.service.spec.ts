@@ -87,9 +87,9 @@ describe('ClientsService', () => {
     const data = prismaMock.client.create.mock.calls[0][0].data;
     expect(data.user.create.email).toBe('rosa@correo.com');
     expect(data.user.create.role).toBe(Role.CLIENT);
-    await expect(
-      bcrypt.compare('ClaveSegura123', data.user.create.passwordHash),
-    ).resolves.toBe(true);
+    await expect(bcrypt.compare('ClaveSegura123', data.user.create.passwordHash)).resolves.toBe(
+      true,
+    );
     expect(data).not.toHaveProperty('subscriptions');
   });
 
@@ -130,9 +130,43 @@ describe('ClientsService', () => {
     });
     prismaMock.networkAccess.findFirst.mockResolvedValueOnce(null);
 
-    await expect(
-      service.changeStatus('client-1', { status: ClientStatus.ACTIVE }),
-    ).rejects.toThrow('No se puede activar al cliente');
+    await expect(service.changeStatus('client-1', { status: ClientStatus.ACTIVE })).rejects.toThrow(
+      'No se puede activar al cliente',
+    );
     expect(prismaMock.client.update).not.toHaveBeenCalled();
+  });
+
+  it('requires both MAC and IP before activating (HU-10)', async () => {
+    prismaMock.client.findUnique.mockResolvedValueOnce({
+      ...dbClient,
+      status: ClientStatus.SUSPENDED,
+    });
+    prismaMock.networkAccess.findFirst.mockResolvedValueOnce({
+      id: 'access-1',
+      macAddress: 'AA:BB:CC:11:22:33',
+      ipAssigned: null,
+    });
+
+    await expect(service.changeStatus('client-1', { status: ClientStatus.ACTIVE })).rejects.toThrow(
+      'falta registrar la IP',
+    );
+    expect(prismaMock.client.update).not.toHaveBeenCalled();
+  });
+
+  it('activates a client whose acta registered MAC and IP', async () => {
+    prismaMock.client.findUnique.mockResolvedValueOnce({
+      ...dbClient,
+      status: ClientStatus.SUSPENDED,
+    });
+    prismaMock.networkAccess.findFirst.mockResolvedValueOnce({
+      id: 'access-1',
+      macAddress: 'AA:BB:CC:11:22:33',
+      ipAssigned: '10.20.0.15',
+    });
+    prismaMock.client.update.mockResolvedValueOnce({ ...dbClient, status: ClientStatus.ACTIVE });
+
+    const result = await service.changeStatus('client-1', { status: ClientStatus.ACTIVE });
+
+    expect(result.client.status).toBe(ClientStatus.ACTIVE);
   });
 });
