@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { HttpException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -6,14 +6,14 @@ import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { AuthService } from './auth.service';
+import { AuthService, MAX_FAILED_LOGINS } from './auth.service';
 
 describe('AuthService', () => {
   let service: AuthService;
   let jwtService: JwtService;
 
   const prismaMock = {
-    user: { findFirst: jest.fn(), findUnique: jest.fn() },
+    user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
   };
   const auditMock = { record: jest.fn() };
   const meta = { ipAddress: '127.0.0.1', userAgent: 'jest' };
@@ -28,6 +28,10 @@ describe('AuthService', () => {
     passwordHash: await bcrypt.hash('Admin123*', 4),
     role: Role.ADMIN,
     isActive: true,
+    failedLoginAttempts: 0,
+    lockedUntil: null as Date | null,
+    mustChangePassword: false,
+    passwordChangedAt: null as Date | null,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -76,6 +80,69 @@ describe('AuthService', () => {
     expect(auditMock.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'LOGIN_FAILED' }),
     );
+  });
+
+  it('counts a failed attempt without locking before the limit', async () => {
+    prismaMock.user.findFirst.mockResolvedValueOnce({
+      ...(await buildUser()),
+      failedLoginAttempts: 1,
+    });
+
+    await expect(service.login('admin@unitik.com.co', 'incorrecta1', meta)).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { failedLoginAttempts: 2 },
+    });
+  });
+
+  it(`locks the account on the ${MAX_FAILED_LOGINS}th failed attempt (HU-01)`, async () => {
+    prismaMock.user.findFirst.mockResolvedValueOnce({
+      ...(await buildUser()),
+      failedLoginAttempts: MAX_FAILED_LOGINS - 1,
+    });
+
+    const error = await service.login('admin@unitik.com.co', 'incorrecta1', meta).catch((e) => e);
+
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(423);
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { failedLoginAttempts: 0, lockedUntil: expect.any(Date) },
+    });
+    expect(auditMock.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'ACCOUNT_LOCKED', userId: 'user-1' }),
+    );
+  });
+
+  it('rejects even the right password while the lock is active', async () => {
+    prismaMock.user.findFirst.mockResolvedValueOnce({
+      ...(await buildUser()),
+      lockedUntil: new Date(Date.now() + 10 * 60_000),
+    });
+
+    const error = await service.login('admin@unitik.com.co', 'Admin123*', meta).catch((e) => e);
+
+    expect((error as HttpException).getStatus()).toBe(423);
+    expect(auditMock.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'LOGIN_BLOCKED' }),
+    );
+  });
+
+  it('clears the failed counter after a successful login', async () => {
+    prismaMock.user.findFirst.mockResolvedValueOnce({
+      ...(await buildUser()),
+      failedLoginAttempts: 3,
+      lockedUntil: new Date(Date.now() - 60_000),
+    });
+
+    await service.login('admin@unitik.com.co', 'Admin123*', meta);
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
   });
 
   it('refreshes tokens for an active user with a valid refresh token', async () => {
