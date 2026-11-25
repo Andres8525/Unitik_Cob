@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -61,5 +62,20 @@ export class PlansController {
     const { plan, previous } = await this.plansService.update(id, dto);
     request.auditOldValues = previous;
     return plan;
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  @Audited({ entity: 'Plan', action: 'DELETE' })
+  @ApiOperation({
+    summary: 'Eliminar plan sin clientes; con clientes activos se rechaza (HU-03, auditado)',
+  })
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request & { auditOldValues?: unknown },
+  ): Promise<{ result: 'deleted' | 'deactivated' }> {
+    const { result, previous } = await this.plansService.remove(id);
+    request.auditOldValues = previous;
+    return { result };
   }
 }

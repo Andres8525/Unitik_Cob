@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ServiceType } from '@prisma/client';
 import { SystemConfigService } from '../system-config/system-config.service';
@@ -8,7 +9,14 @@ describe('PlansService', () => {
   let service: PlansService;
 
   const prismaMock = {
-    plan: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    plan: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    subscription: { count: jest.fn() },
   };
   const configMock = {
     getNumber: jest.fn((key: string) =>
@@ -55,5 +63,37 @@ describe('PlansService', () => {
     const { plan: updated, previous } = await service.update('plan-1', { monthlyPrice: 55000 });
     expect(previous.monthlyPrice).toBe(50000);
     expect(updated.monthlyPrice).toBe(55000);
+  });
+
+  describe('remove (HU-03)', () => {
+    const plan = { id: 'plan-1', name: 'Plan 1 Fibra', isActive: true };
+
+    it('refuses to delete a plan with active clients', async () => {
+      prismaMock.plan.findUnique.mockResolvedValueOnce(plan);
+      prismaMock.subscription.count.mockResolvedValueOnce(3).mockResolvedValueOnce(3);
+
+      await expect(service.remove('plan-1')).rejects.toThrow(ConflictException);
+      expect(prismaMock.plan.delete).not.toHaveBeenCalled();
+      expect(prismaMock.plan.update).not.toHaveBeenCalled();
+    });
+
+    it('deactivates a plan referenced only by cancelled subscriptions', async () => {
+      prismaMock.plan.findUnique.mockResolvedValueOnce(plan);
+      prismaMock.subscription.count.mockResolvedValueOnce(0).mockResolvedValueOnce(2);
+
+      await expect(service.remove('plan-1')).resolves.toMatchObject({ result: 'deactivated' });
+      expect(prismaMock.plan.update).toHaveBeenCalledWith({
+        where: { id: 'plan-1' },
+        data: { isActive: false },
+      });
+    });
+
+    it('deletes a plan nobody ever subscribed to', async () => {
+      prismaMock.plan.findUnique.mockResolvedValueOnce(plan);
+      prismaMock.subscription.count.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+
+      await expect(service.remove('plan-1')).resolves.toMatchObject({ result: 'deleted' });
+      expect(prismaMock.plan.delete).toHaveBeenCalledWith({ where: { id: 'plan-1' } });
+    });
   });
 });
