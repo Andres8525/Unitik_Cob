@@ -144,8 +144,10 @@ export class NotificationsService {
           channel: NotificationChannel.IN_APP,
           type: 'ROUTER_RECONNECTION_FAILED',
           content:
-            `Falló la reconexión del cliente ${event.clientId} después de ${event.attempts} intentos. ` +
-            `Acceso: ${event.networkAccessId}. IP: ${event.ipAssigned ?? 'sin asignar'}. ` +
+            (event.attempts > 0
+              ? `Falló la reconexión del cliente ${event.clientId} después de ${event.attempts} intentos. `
+              : `No se pudo reconectar al cliente ${event.clientId}. `) +
+            `Acceso: ${event.networkAccessId ?? 'sin registrar'}. IP: ${event.ipAssigned ?? 'sin asignar'}. ` +
             `MAC: ${event.macAddress ?? 'sin registrar'}. Motivo: ${event.reason}`,
           status: NotificationStatus.SENT,
           sentAt: event.failedAt,
