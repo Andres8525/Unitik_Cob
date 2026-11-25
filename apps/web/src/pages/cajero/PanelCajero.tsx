@@ -27,6 +27,14 @@ const money = new Intl.NumberFormat('es-CO', {
   maximumFractionDigits: 0,
 });
 
+/** Due dates arrive as "YYYY-MM-DD" or as a full ISO timestamp; show them in Bogotá time. */
+function formatDueDate(value: string): string {
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00-05:00` : value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+}
+
 function FacturaRow({
   invoice,
   busy,
@@ -56,7 +64,7 @@ function FacturaRow({
         </div>
         <p className="mt-1 text-sm text-slate-500">
           Periodo {invoice.period} · Vence{' '}
-          {new Date(`${invoice.dueDate}T00:00:00`).toLocaleDateString('es-CO')}
+          {formatDueDate(invoice.dueDate)}
         </p>
         <p className="mt-2 text-lg font-bold text-slate-900">
           {money.format(Number(invoice.total))}

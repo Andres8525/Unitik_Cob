@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
 export const actaInstalacionSchema = z.object({
-  clientId: z.string().uuid('Selecciona un cliente'),
-  deviceId: z.string().uuid('Selecciona el dispositivo de red'),
+  // The API validates the UUID; here we only require a selection (demo ids are not UUIDs).
+  clientId: z.string().min(1, 'Selecciona un cliente'),
+  deviceId: z.string().min(1, 'Selecciona el dispositivo de red'),
   macAddress: z
     .string()
     .trim()
